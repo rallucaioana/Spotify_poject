@@ -1,6 +1,5 @@
 import pandas as pd
 import numpy as np
-import statsmodels.api as sm
 import sqlite3
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -30,15 +29,14 @@ cur = con.cursor()
 # === 1. ===
 album_name = "The Colour And The Shape"
 cur.execute(
-    """
+    f"""
     SELECT a.*, f.*
     FROM albums_data a
     JOIN features_data f
       ON a.track_id = f.id
-    WHERE a.album_name = ?
+    WHERE a.album_name = {album_name}
     ORDER BY a.track_number
-    """,
-    (album_name,)
+    """
 )
 data = cur.fetchall()
 col_names = [desc[0] for desc in cur.description]
