@@ -117,7 +117,7 @@ print(top_artists)
 
 # === 3. ===
 cur.execute(
-    f"""
+    """
     SELECT
         a.artist_id,
         AVG(a.album_popularity) AS mean_album_popularity,
@@ -155,7 +155,7 @@ plt.show()
 
 # === 4. ===
 cur.execute(
-    f"""
+    """
     SELECT * 
     FROM albums_data
     WHERE release_date IS NOT NULL;
@@ -178,7 +178,7 @@ print(df_albums[["release_date", "era"]].sample(10))
 
 # === 5. ===
 cur.execute(
-    f"""
+    """
     SELECT
         track_popularity,
         explicit
