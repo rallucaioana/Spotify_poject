@@ -1,6 +1,7 @@
 import sqlite3
 import pandas as pd
 import numpy as np
+import matplotlib.pyplot as plt
 
 
 connect = sqlite3.connect("spotify_database.db")
@@ -180,3 +181,39 @@ print(filtered_df.head(10))
 
 print("\nfiltered describe:")
 print(filtered_df[["loudness","tempo","duration_ms","track_popularity"]].describe())
+
+#DID MUSIXC CHANGE OVER TIME 
+df = pd.read_sql_query("""
+SELECT
+    a.track_id,
+    a.release_date,
+    f.danceability,
+    f.energy,
+    f.loudness,
+    f.tempo,
+    f.valence
+FROM albums_data a
+JOIN features_data f ON a.track_id = f.id
+WHERE a.release_date IS NOT NULL
+""", connect)
+
+df["release_date"] = pd.to_datetime(df["release_date"])
+df["year"] = df["release_date"].dt.year
+
+yearly_avg = df.groupby("year")[
+    ["danceability", "energy", "loudness", "tempo", "valence"]
+].mean().reset_index()
+
+print(yearly_avg.head())
+print(yearly_avg.corr())
+
+feature = "valence"
+
+plt.figure()
+plt.plot(yearly_avg["year"], yearly_avg[feature])
+plt.title(f"{feature} over time")
+plt.xlabel("Year")
+plt.ylabel(feature)
+plt.show()
+
+
