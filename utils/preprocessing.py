@@ -102,6 +102,21 @@ def build_clean_dataset(df, outlier_action="flag"):
 
     bad_mask = mask_invalid_data(df)
     df_clean = df.loc[~bad_mask].copy()
+    
+    if "explicit" in df_clean.columns:
+        df_clean["explicit"] = (
+            df_clean["explicit"]
+            .astype(str)
+            .str.strip()
+            .str.lower()
+            .map({
+                "1": True,
+                "0": False,
+                "true": True,
+                "false": False,
+            })
+            .astype("boolean")
+        )
 
     if "followers" in df_clean.columns:
         df_clean["followers_log"] = np.log1p(df_clean["followers"])
@@ -159,3 +174,4 @@ def build_clean_dataset(df, outlier_action="flag"):
         )
 
     return df_final
+

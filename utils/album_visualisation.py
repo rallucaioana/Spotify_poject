@@ -2,16 +2,11 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import html
-import tomllib
-from utils.helpers import hex_to_rgba
 import plotly.graph_objects as go
 
-with open(".streamlit/config.toml", "rb") as f:
-    config = tomllib.load(f)
+from utils.helpers import get_theme_colors
 
-PRIMARY_COLOR = config["theme"]["primaryColor"]
-# adds opacity to the fill colour
-PRIMARY_COLOR_FILL = hex_to_rgba(PRIMARY_COLOR, 0.35)
+PRIMARY_COLOR, PRIMARY_COLOR_FILL = get_theme_colors(fill_alpha=0.35)
 
 def render_collaborators(artists, title="Collaborating Artists"):
     if not artists:
@@ -338,7 +333,7 @@ def render_album_feature_summary(feature_summary_result):
             x=variability_chart_df["metric"],
             y=variability_chart_df["value"],
             marker=dict(
-                color=hex_to_rgba(PRIMARY_COLOR, 0.35),
+                color=PRIMARY_COLOR_FILL,
                 line=dict(color=PRIMARY_COLOR, width=2),
             ),
             hovertemplate="%{x}: %{y:.3f}<extra></extra>",
@@ -418,14 +413,7 @@ def render_album_feature_summary(feature_summary_result):
         track_display["Time sig."] = track_display["time_signature"]
 
     if "explicit" in track_display.columns:
-        explicit_norm = (
-            track_display["explicit"]
-            .astype(str)
-            .str.strip()
-            .str.lower()
-            .replace({"1": "true", "0": "false"})
-        )
-        track_display["Explicit"] = np.where(explicit_norm == "true", "Yes", "No")
+        track_display["Explicit"] = np.where(track_display["explicit"], "Yes", "No")
 
     if "duration_ms" in track_display.columns:
         total_seconds = pd.to_numeric(track_display["duration_ms"], errors="coerce") / 1000
@@ -547,3 +535,4 @@ def render_album_summary_page(summary_result, cover_data):
     render_album_header(summary_result, cover_data)
     st.markdown("---")
     render_album_feature_summary(summary_result)
+

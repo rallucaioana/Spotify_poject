@@ -56,15 +56,8 @@ def get_album_feature_summary(df, album_id):
         raise ValueError("No rows found for the requested album_id.")
 
     if "explicit" in df_album.columns:
-        explicit_norm = (
-            df_album["explicit"]
-            .astype(str)
-            .str.strip()
-            .str.lower()
-            .replace({"1": "true", "0": "false"})
-        )
-        explicit_track_count = int((explicit_norm == "true").sum())
-        explicit_ratio = float((explicit_norm == "true").mean())
+        explicit_track_count = int(df_album["explicit"].sum())
+        explicit_ratio = float(df_album["explicit"].mean())
     else:
         explicit_track_count = np.nan
         explicit_ratio = np.nan
@@ -249,3 +242,4 @@ def get_album_feature_summary_split(df, album_id, track_df=None):
         "variability_df": variability_df,
         "track_df": track_df,
     }
+
