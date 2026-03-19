@@ -1,10 +1,6 @@
 import pandas as pd
 import numpy as np
 
-from sklearn.ensemble import IsolationForest
-from sklearn.preprocessing import StandardScaler
-
-
 def mask_invalid_data(df):
     m = pd.Series(False, index=df.index)
 
@@ -59,29 +55,37 @@ def mask_invalid_data(df):
     return m
 
 
-def detect_outliers(df, columns, contamination=0.01, random_state=42):
+def detect_outliers(df, columns, iqr_multiplier=1.5, min_flagged_features=1):
     if not columns:
         raise ValueError("No columns supplied for outlier detection.")
 
     X = df[columns].copy()
 
-    scaler = StandardScaler()
-    X_scaled = scaler.fit_transform(X)
+    q1 = X.quantile(0.25)
+    q3 = X.quantile(0.75)
+    iqr = q3 - q1
 
-    model = IsolationForest(
-        n_estimators=300,
-        contamination=contamination,
-        random_state=random_state,
-        n_jobs=-1,
+    # only use columns with actual spread
+    valid_iqr = iqr > 0
+    usable_cols = X.columns[valid_iqr]
+
+    if len(usable_cols) == 0:
+        result = df.copy()
+        result["is_outlier"] = False
+        return result
+
+    lower_bounds = q1[usable_cols] - iqr_multiplier * iqr[usable_cols]
+    upper_bounds = q3[usable_cols] + iqr_multiplier * iqr[usable_cols]
+
+    outlier_mask = (
+        X[usable_cols].lt(lower_bounds, axis=1)
+        | X[usable_cols].gt(upper_bounds, axis=1)
     )
-    model.fit(X_scaled)
 
-    pred = model.predict(X_scaled)
-    score = model.decision_function(X_scaled)
+    flagged_count = outlier_mask.sum(axis=1)
 
     result = df.copy()
-    result["is_outlier"] = pred == -1
-    result["anomaly_score"] = score
+    result["is_outlier"] = flagged_count >= min_flagged_features
 
     return result
 
@@ -142,12 +146,12 @@ def build_clean_dataset(df, outlier_action="flag"):
     ]
 
     candidate_features = feature_cols + popularity_cols
-    model_features = [c for c in candidate_features if c in df_clean.columns]
+    iqr_features = [c for c in candidate_features if c in df_clean.columns]
 
-    if not model_features:
+    if not iqr_features:
         raise ValueError("No valid columns found for outlier detection.")
 
-    df_clean = detect_outliers(df_clean, model_features)
+    df_clean = detect_outliers(df_clean, iqr_features, iqr_multiplier=1.5, min_flagged_features=2)
 
     if outlier_action == "remove":
         df_final = df_clean.loc[~df_clean["is_outlier"]].copy()

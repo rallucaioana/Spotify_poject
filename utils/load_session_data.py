@@ -3,7 +3,12 @@ import pandas as pd
 
 from utils.data_loader import load_raw_spotify_data
 from utils.preprocessing import build_clean_dataset
-from utils.artist_audits import build_artist_quality_report
+from utils.artist_audits import (
+    build_artist_quality_report,
+    audit_artist_name_to_id,
+    audit_artist_id_to_name,
+    build_reviewed_override_table,
+)
 
 
 @st.cache_data(show_spinner=False)
@@ -73,17 +78,17 @@ def load_app_data() -> dict:
 
     df_final = build_clean_dataset(df_fixed)
 
-    artist_quality_clean = build_artist_quality_report(df_final)
-
+    # Run audits directly on the cleaned data — no need to re-run the full
+    # resolution pipeline since df_final already has corrected artist IDs.
     album_selector_df = build_album_selector_df(df_final)
 
     return {
-        "df_raw": df_raw,
-        "df_fixed": df_fixed,
         "df_final": df_final,
         "album_selector_df": album_selector_df,
-        "ambiguous_name_to_id": artist_quality_clean["ambiguous_name_to_id"],
-        "inconsistent_id_to_name": artist_quality_clean["inconsistent_id_to_name"],
+        "ambiguous_name_to_id": audit_artist_name_to_id(df_final),
+        "inconsistent_id_to_name": audit_artist_id_to_name(df_final),
+        "reviewed_artist_name_overrides": build_reviewed_override_table(),
+        "auto_resolved_artist_ids": artist_quality_raw["auto_resolved_artist_ids"],
     }
 
 

@@ -1,8 +1,5 @@
-import sqlite3
 import pandas as pd
 import numpy as np
-
-from utils.data_loader import clean_text_columns
 
 
 def extract_album_collaborators(df_album, primary_artist_name):
@@ -71,6 +68,12 @@ def get_album_feature_summary(df, album_id):
     collaborating_artists = extract_album_collaborators(df_album, primary_artist_name)
     
     primary_artist_genres = extract_primary_artist_genres(df_album)
+
+    is_artist_name_ambiguous = (
+        bool(df_album["is_artist_name_ambiguous"].fillna(False).any())
+        if "is_artist_name_ambiguous" in df_album.columns
+        else False
+    )
 
     summary = {
         "album_id": album_id,
@@ -161,9 +164,9 @@ def get_album_feature_summary(df, album_id):
         "tempo_std": float(df_album["tempo"].std()) if "tempo" in df_album.columns and len(df_album) > 1 else 0.0,
         "outlier_track_count": int(df_album["is_outlier"].sum()) if "is_outlier" in df_album.columns else 0,
         "outlier_ratio": float(df_album["is_outlier"].mean()) if "is_outlier" in df_album.columns else 0.0,
-        "avg_anomaly_score": float(df_album["anomaly_score"].mean()) if "anomaly_score" in df_album.columns else np.nan,
+        "is_artist_name_ambiguous": is_artist_name_ambiguous,
         "explicit_track_count": explicit_track_count,
-        "explicit_ratio": explicit_ratio,
+        "explicit_ratio": explicit_ratio
     }
 
     summary_df = pd.DataFrame([summary])
@@ -182,20 +185,20 @@ def get_album_feature_summary_split(df, album_id, track_df=None):
         "album_name": s["album_name"],
         "primary_artist_name": s["primary_artist_name"],
         "artist_names": s["artist_names"],
-        "primary_artist_genres": s["primary_artist_genres"],
-        "primary_artist_genres_display": s["primary_artist_genres_display"],
         "collaborating_artists": s["collaborating_artists"],
         "collaborating_artists_display": s["collaborating_artists_display"],
+        "primary_artist_genres": s["primary_artist_genres"],
+        "primary_artist_genres_display": s["primary_artist_genres_display"],
         "release_date": s["release_date"],
         "release_date_display": s["release_date_display"],
         "album_type": s["album_type"],
         "label": s["label"],
         "track_count": s["track_count"],
-        "total_duration_min": s["total_duration_min"],
         "explicit_track_count": s["explicit_track_count"],
         "explicit_ratio": s["explicit_ratio"],
-        "outlier_track_count": s["outlier_track_count"],
-        "outlier_ratio": s["outlier_ratio"],
+        "total_duration_ms": s["total_duration_ms"],
+        "total_duration_min": s["total_duration_min"],
+        "is_artist_name_ambiguous": s["is_artist_name_ambiguous"],
     }])
 
     popularity_df = pd.DataFrame([{
@@ -203,8 +206,7 @@ def get_album_feature_summary_split(df, album_id, track_df=None):
         "avg_track_popularity": s["avg_track_popularity"],
         "median_track_popularity": s["median_track_popularity"],
         "primary_artist_popularity": s["primary_artist_popularity"],
-        "primary_artist_followers": s["primary_artist_followers"],
-        "avg_anomaly_score": s["avg_anomaly_score"],
+        "primary_artist_followers": s["primary_artist_followers"]
     }])
 
     audio_features_df = pd.DataFrame([{
@@ -242,4 +244,3 @@ def get_album_feature_summary_split(df, album_id, track_df=None):
         "variability_df": variability_df,
         "track_df": track_df,
     }
-

@@ -169,20 +169,7 @@ if {"primary_artist_name", "artist_ids", "album_id", "album_type", "artist_popul
         .copy()
     )
 
-    # artist_overview_df["album_type"] = (
-    #     artist_overview_df["album_type"]
-    #     .astype(str)
-    #     .str.strip()
-    #     .str.lower()
-    # )
-
-    # # keep only albums, not singles
-    # artist_overview_df = artist_overview_df.loc[
-    #     artist_overview_df["album_type"] == "album"
-    # ].copy()
-
     # collapse repeated track-level rows so each album counts once per artist
-    # sadly re-releases are still counted
     artist_overview_df = artist_overview_df.drop_duplicates(
         subset=["artist_ids", "album_id"]
     )
@@ -223,4 +210,3 @@ if {"primary_artist_name", "artist_ids", "album_id", "album_type", "artist_popul
         width="stretch",
         hide_index=True,
     )
-    
