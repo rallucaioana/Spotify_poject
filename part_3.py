@@ -1,64 +1,67 @@
+import sqlite3
 import pandas as pd
 import numpy as np
-import sqlite3
 import matplotlib.pyplot as plt
 import seaborn as sns
-
 from scipy.stats import mannwhitneyu
-
 
 con = sqlite3.connect("data/spotify_database.db")
 cur = con.cursor()
 
-# tests
-# cur.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name;")
-# tables = cur.fetchall()
+#1
+#pick album and investigate features
+album = "Heartbreak On A Full Moon"
 
-# print("Tables:")
-# for table in tables:
-#     print(table[0])
+cur.execute(" SELECT album_id, COUNT(*) as n_tracks FROM albums_data WHERE album_name = ? GROUP BY album_id ORDER BY n_tracks DESC;", (album,))
 
-# cur.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name;")
+album_versions = cur.fetchall()
 
-# cur.execute("PRAGMA table_info(albums_data);")
-# col_names = [c[1] for c in cur.fetchall()]
+print("\nAvailable album versions:")
+for r in album_versions:
+    print(r)
 
-# print(col_names)
+album_id = "3zak0kNLcOY5vFcB3Ipskp"
+cur.execute("SELECT track_number, track_name FROM albums_data WHERE album_id = ? ORDER BY track_number;", (album_id,))
+rows = cur.fetchall()
 
+print(f"\nTracks on album: {album}\n")
 
-# === 1. ===
-album_name = "The Colour And The Shape"
-cur.execute(
-    f"""
-    SELECT a.*, f.*
-    FROM albums_data a
-    JOIN features_data f
-      ON a.track_id = f.id
-    WHERE a.album_name = {album_name}
-    ORDER BY a.track_number
-    """
-)
-data = cur.fetchall()
-col_names = [desc[0] for desc in cur.description]
-print(col_names)
+for row in rows:
+    print(f"{row[0]}. {row[1]}")
 
-df_album = pd.DataFrame(data, columns=col_names)
-print(df_album)
+#consistency of features over all tracks 
+cur.execute("""SELECT albums_data.track_name, features_data.danceability, features_data.loudness
+FROM albums_data JOIN features_data ON albums_data.track_id = features_data.id WHERE albums_data.album_id = ?""", (album_id,))
+rows = cur.fetchall()
 
-# Summary stats
-stats = df_album[["danceability", "loudness"]].agg(["mean", "std", "min", "max"])
-stats.loc["range"] = stats.loc["max"] - stats.loc["min"]
+print(f"\nFeatures for album: {album}")
+for row in rows:
+    print(row)
 
-# Relative variability (smaller = more consistent)
-cv = (df_album[["danceability", "loudness"]].std() / df_album[["danceability", "loudness"]].mean().abs()) * 100
-print(stats)
-print("\nCoefficient of variation (%):")
-print(cv)
+dance = [row[1] for row in rows]
+loud = [row[2] for row in rows]
 
-print(df_album[["track_number", "danceability", "loudness"]].to_string(index=False))
+print("\nDanceability:")
+print("Mean:", np.mean(dance))
+print("Std:", np.std(dance))
 
+print("\nLoudness:")
+print("Mean:", np.mean(loud))
+print("Std:", np.std(loud))
 
-# === 2. ===
+plt.plot(dance)
+plt.title(f"Danceability – {album}")
+plt.xlabel("Track number")
+plt.ylabel("Danceability")
+plt.show()
+
+plt.plot(loud)
+plt.title(f"Loudness – {album}")
+plt.xlabel("Track number")
+plt.ylabel("Loudness")
+plt.show()    
+
+#2 
 feature = "energy"
 
 cur.execute(
@@ -111,9 +114,8 @@ top_artists = (
 )
 print(top_artists)
 
-
-
-# === 3. ===
+#3
+#relationship between artist popularity and album popularity
 cur.execute(
     """
     SELECT
@@ -149,9 +151,8 @@ plt.ylabel("Mean Album Popularity")
 plt.title("Artist vs Mean Album Popularity")
 plt.show()
 
-
-
-# === 4. ===
+#4
+#add eras column
 cur.execute(
     """
     SELECT * 
@@ -172,119 +173,56 @@ df_albums["era"] = df_albums["era"].astype("Int64").astype(str) + "s"
 print(sorted(df_albums["era"].dropna().unique()))
 print(df_albums[["release_date", "era"]].sample(10))
 
-
-
-# === 5. ===
-cur.execute(
-    """
-    SELECT
-        track_popularity,
-        explicit
-    FROM tracks_data
-    WHERE track_popularity IS NOT NULL;
-    """
-)
-
+#5
+# Are explicit tracks more popular 
+cur.execute (" SELECT track_popularity, explicit FROM tracks_data WHERE track_popularity is NOT NULL AND explicit is NOT NULL")
 rows = cur.fetchall()
-cols = [d[0] for d in cur.description]
 
-df_explicit = pd.DataFrame(rows, columns=cols)
+explicit = np.array([r[0] for r in rows if r[1] == 'true'], dtype=float)
+nonexplicit = np.array([r[0] for r in rows if r[1] == 'false'], dtype=float)
 
-# converting string true/false to boolean
-df_explicit["explicit"] = df_explicit["explicit"].map({
-    "false": 0,
-    "true": 1
-})
+print("\nExplicit vs popularity analysis:")
+print("\nNumber explicit:", len(explicit))
+print("Number non-explicit:", len(nonexplicit))
 
-explicit_mean = df_explicit[df_explicit["explicit"] == 1]["track_popularity"].mean()
-clean_mean = df_explicit[df_explicit["explicit"] == 0]["track_popularity"].mean()
+print("\nMean popularity explicit:", round(np.mean(explicit), 3))
+print("Mean popularity non-explicit:", round(np.mean(nonexplicit), 3))
 
-explicit_median = df_explicit[df_explicit["explicit"] == 1]["track_popularity"].median()
-clean_median = df_explicit[df_explicit["explicit"] == 0]["track_popularity"].median()
-
-print("Explicit: \nMean:", explicit_mean, "\nMedian:", explicit_median, \
-    "\n\nNon-explicit: \nMean:", clean_mean, "\nMedian:", clean_median)
-
-sns.boxplot(
-    x="explicit",
-    y="track_popularity",
-    data=df_explicit
-)
+plt.boxplot([nonexplicit, explicit], tick_labels=["Non-explicit", "Explicit"])
+plt.ylabel("Track popularity")
+plt.title("Explicit vs Non-explicit Popularity")
 plt.show()
 
-explicit = df_explicit[df_explicit["explicit"] == 1]["track_popularity"]
-clean = df_explicit[df_explicit["explicit"] == 0]["track_popularity"]
+#6
+#most amount of explicit tracks 
+query = """
+SELECT ar.name AS artist,
+       t.explicit
+FROM tracks_data t
+JOIN albums_data al ON t.id = al.track_id
+JOIN artist_data ar ON al.artist_id = ar.id
+"""
 
-u_stat, p_value = mannwhitneyu(explicit, clean, alternative="two-sided")
+df_artist = pd.read_sql_query(query, con)
 
-print("\nP-value of statistical difference between distrubutions:", p_value)
-
-
-
-# === 6. ===
-cur.execute(
-    """
-    SELECT
-        t.id,
-        t.explicit,
-        a.artist_0,
-        a.artist_1,
-        a.artist_2,
-        a.artist_3,
-        a.artist_4,
-        a.artist_5,
-        a.artist_6,
-        a.artist_7,
-        a.artist_8,
-        a.artist_9,
-        a.artist_10,
-        a.artist_11
-    FROM tracks_data t
-    JOIN albums_data a
-        ON t.id = a.track_id;
-    """
-)
-
-rows = cur.fetchall()
-cols = [d[0] for d in cur.description]
-
-df_explicit_pop = pd.DataFrame(rows, columns=cols)
-
-# converting string true/false to numeric
-df_explicit_pop["explicit"] = df_explicit_pop["explicit"].map({
-    "false": 0, 
-    "true": 1
+df_artist["explicit_binary"] = df_artist["explicit"].map({
+    "true": 1,
+    "false": 0
 })
 
-artist_cols = [f"artist_{i}" for i in range(12)]
-
-df_explicit_pop["artists"] = df_explicit_pop[artist_cols].apply(
-    lambda r: [x for x in r.tolist() if pd.notna(x)],
-    axis=1
+artist_ratio = (
+    df_artist
+    .groupby("artist")["explicit_binary"]
+    .agg(["mean", "count"])
 )
 
-df_pairs = (
-    df_explicit_pop[["id", "explicit", "artists"]]
-      .explode("artists")
-      .dropna(subset=["artists"])
-      .rename(columns={"artists": "artist_id"})
-      .drop_duplicates(subset=["id", "artist_id"])
-)
+artist_ratio = artist_ratio[artist_ratio["count"] > 20]
+artist_ratio = artist_ratio.sort_values("mean", ascending=False)
 
-artist_stats = (
-    df_pairs.groupby("artist_id")["explicit"]
-      .agg(["mean", "count"])
-      .rename(columns={"mean": "explicit_proportion", "count": "track_count"})
-      .sort_values("explicit_proportion", ascending=False)
-)
+print(artist_ratio.head(10))
 
-# filtering out artists who have less than 75 tracks published
-artist_stats = artist_stats[artist_stats["track_count"] >= 75]
-
-print(artist_stats.head(10))
-
-
-# === 7. ===
+#7
+#collaborations
 cur.execute(
     """
     SELECT
@@ -348,4 +286,3 @@ sns.boxplot(
 plt.show()
 
 con.close()
-
