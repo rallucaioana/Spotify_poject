@@ -46,3 +46,38 @@ def get_theme_colors(fill_alpha=0.45) -> tuple[str, str]:
     primary_color_fill = hex_to_rgba(primary_color, fill_alpha)
 
     return primary_color, primary_color_fill
+
+def prepare_year_column(df):
+    df = df.copy()
+    df["release_year"] = pd.to_datetime(
+        df["release_date"], errors="coerce"
+    ).dt.year
+
+    df = df[df["release_year"].notna()].copy()
+
+    return df
+
+def filter_by_year_range(df, year_range):
+    start_year, end_year = year_range
+
+    return df[
+        (df["release_year"] >= start_year) &
+        (df["release_year"] <= end_year)
+    ].copy()
+
+def apply_iqr_filter(df: pd.DataFrame, column: str) -> pd.DataFrame:
+    series = pd.to_numeric(df[column], errors="coerce").dropna()
+
+    if series.empty:
+        return df.copy()
+
+    q1 = series.quantile(0.25)
+    q3 = series.quantile(0.75)
+    iqr = q3 - q1
+
+    lower = q1 - 1.5 * iqr
+    upper = q3 + 1.5 * iqr
+
+    return df[
+        pd.to_numeric(df[column], errors="coerce").between(lower, upper)
+    ].copy()
