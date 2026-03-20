@@ -532,3 +532,30 @@ def build_artist_quality_report(df):
         "reviewed_artist_name_overrides": reviewed_artist_name_overrides,
         "auto_resolved_artist_ids": auto_resolved_summary,
     }
+
+# TOP ARTISTS BY FEATURE
+
+def get_top_artists_by_feature(df: pd.DataFrame, feature: str, top_n=10, min_tracks=3):
+
+    if feature not in df.columns:
+        raise ValueError(f"{feature} not found in dataframe")
+
+    artist_col = "primary_artist_name"
+
+    df_valid = df[[artist_col, feature]].dropna()
+
+    grouped = (
+        df_valid
+        .groupby(artist_col)
+        .agg(
+            avg_feature=(feature, "mean"),
+            track_count=(feature, "count")
+        )
+        .reset_index()
+    )
+
+    grouped = grouped[grouped["track_count"] >= min_tracks]
+
+    grouped = grouped.sort_values(by="avg_feature", ascending=False)
+
+    return grouped.head(top_n)
