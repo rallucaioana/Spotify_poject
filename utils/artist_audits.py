@@ -531,6 +531,7 @@ def build_artist_quality_report(df):
         "inconsistent_id_to_name": inconsistent_id_to_name,
         "reviewed_artist_name_overrides": reviewed_artist_name_overrides,
         "auto_resolved_artist_ids": auto_resolved_summary,
+<<<<<<< HEAD
     }
 
 # TOP ARTISTS BY FEATURE
@@ -559,3 +560,6 @@ def get_top_artists_by_feature(df: pd.DataFrame, feature: str, top_n=10, min_tra
     grouped = grouped.sort_values(by="avg_feature", ascending=False)
 
     return grouped.head(top_n)
+=======
+    }
+>>>>>>> 683ffd694821907209fad9c7542d98aa39903086
