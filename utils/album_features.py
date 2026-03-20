@@ -244,3 +244,16 @@ def get_album_feature_summary_split(df, album_id, track_df=None):
         "variability_df": variability_df,
         "track_df": track_df,
     }
+
+def get_explicit_counts(track_df):
+    explicit_df = track_df["explicit"].map({True: "Explicit", False: "Non-Explicit"}).value_counts().reset_index()
+    explicit_df.columns = ["type", "count"]
+    return explicit_df
+
+def get_explicit_popularity(track_df):
+    popularity_df = track_df.groupby(
+        track_df["explicit"].map({True: "Explicit", False: "Non-Explicit"})
+    )["track_popularity"].mean().reset_index()
+    popularity_df.columns = ["type", "avg_popularity"]
+    popularity_df["avg_popularity"] = popularity_df["avg_popularity"].round(1)
+    return popularity_df

@@ -208,3 +208,8 @@ __marimo__/
 
 
 .DS_Store
+# VSCode
+.vscode
+
+# API keys
+.streamlit/secrets.toml

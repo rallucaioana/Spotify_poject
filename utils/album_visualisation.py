@@ -530,9 +530,61 @@ def render_album_feature_summary(feature_summary_result):
         },
     )
     
+
+def render_explicit_section(track_df):
+    st.markdown("### Explicit vs Non-Explicit tracks")
     
+    from utils.album_features import get_explicit_counts, get_explicit_popularity
+    
+    explicit_df = get_explicit_counts(track_df)
+    pie_fig = go.Figure(go.Pie(
+    labels=explicit_df["type"],
+    values=explicit_df["count"],
+    marker=dict(colors=[
+        PRIMARY_COLOR if t == "Explicit" else "#535353" 
+        for t in explicit_df["type"]
+    ]),
+))
+    st.plotly_chart(pie_fig, width="stretch")
+
+    explicit_tracks = track_df[track_df["explicit"] == True][["track_name", "artist_names"]].copy()
+    explicit_tracks.columns = ["Track", "Artists"]
+
+    if not explicit_tracks.empty:
+        st.markdown("### Explicit Tracks")
+        st.dataframe(explicit_tracks, hide_index=True, width="stretch")
+    else:
+        st.markdown("### Explicit Tracks")
+        st.info("No explicit tracks on this album.")
+
+    st.markdown("### Average popularity: explicit vs non-explicit")
+    popularity_df = get_explicit_popularity(track_df)
+    bar_fig = go.Figure(go.Bar(
+        x=popularity_df["type"],
+        y=popularity_df["avg_popularity"],
+        width=0.3,
+        marker=dict(color=[                                                
+            PRIMARY_COLOR_FILL if t == "Explicit" else "#535353"
+            for t in popularity_df["type"]],
+            line=dict(color=PRIMARY_COLOR, width=1)),
+    ))
+
+    bar_fig.update_layout(
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        font=dict(color="#FFFFFF"),
+        xaxis=dict(tickfont=dict(color="#B3B3B3"), showgrid=False, zeroline=False),
+        yaxis=dict(tickfont=dict(color="#B3B3B3"), gridcolor="#333333", zeroline=False),
+        showlegend=False,
+        height=350,
+        margin=dict(l=40, r=40, t=20, b=40),
+    )
+
+    st.plotly_chart(bar_fig, width="stretch")
+
 def render_album_summary_page(summary_result, cover_data):
     render_album_header(summary_result, cover_data)
     st.markdown("---")
     render_album_feature_summary(summary_result)
+    render_explicit_section(summary_result["track_df"])
 
