@@ -2,9 +2,9 @@ import streamlit as st
 import pandas as pd
 
 from utils.load_session_data import ensure_app_data_loaded
+from utils.album_features import get_album_feature_summary_split
 from utils.album_visualisation import render_album_summary_page
 from utils.spotify_api import get_album_cover_data
-from utils.album_features import get_album_feature_summary_split
 
 st.set_page_config(layout="wide")
 st.title("Spotify Album Dashboard")
@@ -53,4 +53,5 @@ if selected_label is not None:
             track_df=track_table_df,
         )
 
-        render_album_summary_page(feature_summary_result, cover_data)
+    render_album_summary_page(feature_summary_result, cover_data)
+    

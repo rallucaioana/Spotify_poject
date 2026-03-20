@@ -2,7 +2,6 @@ import pandas as pd
 import numpy as np
 
 
-
 def extract_album_collaborators(df_album, primary_artist_name):
     if "artist_names" not in df_album.columns:
         return []
