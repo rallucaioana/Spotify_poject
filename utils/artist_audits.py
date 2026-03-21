@@ -537,6 +537,35 @@ def build_artist_quality_report(df):
 
 def get_top_artists_by_feature(df: pd.DataFrame, feature: str, top_n=10, min_tracks=3):
 
+    # check if selected feature exists in the dataframe
+    if feature not in df.columns:
+        raise ValueError(f"{feature} not found in dataframe")
+
+    artist_col = "primary_artist_name"
+
+    df_valid = df[[artist_col, feature]].dropna()
+
+    #group by artist and calculate avg feature value and number of tracks per artist
+    grouped = (
+        df_valid
+        .groupby(artist_col)
+        .agg(
+            avg_feature=(feature, "mean"),
+            track_count=(feature, "count")
+        )
+        .reset_index()
+    )
+    
+    #filter artists with too few tracks
+    grouped = grouped[grouped["track_count"] >= min_tracks]
+
+    #sort artists by feature value(highest first)
+    grouped = grouped.sort_values(by="avg_feature", ascending=False)
+
+    return grouped.head(top_n)
+    
+def get_bottom_artists_by_feature(df: pd.DataFrame, feature: str, top_n=10, min_tracks=3):
+
     if feature not in df.columns:
         raise ValueError(f"{feature} not found in dataframe")
 
@@ -555,8 +584,8 @@ def get_top_artists_by_feature(df: pd.DataFrame, feature: str, top_n=10, min_tra
     )
 
     grouped = grouped[grouped["track_count"] >= min_tracks]
-
-    grouped = grouped.sort_values(by="avg_feature", ascending=False)
+    
+    #soart artists by feature value(lowest first)
+    grouped = grouped.sort_values(by="avg_feature", ascending=True)
 
     return grouped.head(top_n)
-
