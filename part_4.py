@@ -1,13 +1,13 @@
 import pandas as pd
 import numpy as np
 import sqlite3
-import math
 from sklearn.ensemble import IsolationForest
 from sklearn.preprocessing import StandardScaler
+from itertools import combinations
+from collections import Counter
 
 import matplotlib.pyplot as plt
 import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 import plotly.io as pio
 pio.renderers.default = "browser"
 
@@ -15,7 +15,7 @@ pio.renderers.default = "browser"
 con = sqlite3.connect("data/spotify_database.db")
 cur = con.cursor()
 
-# build one row per track while keeping a broad set of variables.
+# build one row per track while keeping a broad set of variables
 cur.execute(
     """
     WITH artist_per_track AS (
@@ -91,7 +91,8 @@ df_songs = pd.DataFrame(rows, columns=cols)
 
 print("len after loading data:", len(df_songs))
 
-# === 2. ===
+
+# checking invalid data
 def mask_invalid_data(df):
     m = pd.Series(False, index=df.index)
 
@@ -150,7 +151,7 @@ print("rows flagged as bad data:", int(bad_mask.sum()))
 print("rows kept:", len(df_clean))
 
 
-# === 1. ===
+# checking for outliers using isolation forest
 def detect_outliers_isolation_forest(df, columns, contamination="auto", random_state=42):
     X = df[columns].copy()
 
@@ -253,6 +254,44 @@ print("Outlier action:", outlier_action)
 print("Final rows:", len(df_final))
 
 
+
+#DID MUSIXC CHANGE OVER TIME 
+df = pd.read_sql_query("""
+SELECT
+    a.track_id,
+    a.release_date,
+    f.danceability,
+    f.energy,
+    f.loudness,
+    f.tempo,
+    f.valence
+FROM albums_data a
+JOIN features_data f ON a.track_id = f.id
+WHERE a.release_date IS NOT NULL
+""", con)
+
+df["release_date"] = pd.to_datetime(df["release_date"])
+df["year"] = df["release_date"].dt.year
+
+yearly_avg = df.groupby("year")[
+    ["danceability", "energy", "loudness", "tempo", "valence"]
+].mean().reset_index()
+
+print(yearly_avg.head())
+print(yearly_avg.corr())
+
+feature = "valence"
+
+plt.figure()
+plt.plot(yearly_avg["year"], yearly_avg[feature])
+plt.title(f"{feature} over time")
+plt.xlabel("Year")
+plt.ylabel(feature)
+plt.show()
+
+
+
+# Album feature summary
 # === 4. ===
 def get_album_feature_summary(df, album_name, artist_name=None):
 
@@ -559,10 +598,340 @@ print(track_df)
 print(summary_df.columns)
 print(track_df.columns)
 
-# === 5. ===
+
+#5 remove duplicate artists
+query_artists = """
+SELECT id, name
+FROM artist_data
+"""
+df_artists = pd.read_sql(query_artists, con)
+
+#no full row duplicates
+df_artists.duplicated().sum()
+
+df_artists["name_clean"] = df_artists["name"].str.lower().str.strip()
+
+duplicate_names = df_artists.duplicated(subset=["name_clean"], keep=False)
+
+id_counts = df_artists.groupby("name_clean")["id"].nunique()
+
+multiple_id_names = id_counts[id_counts > 1]
+
+print(multiple_id_names)
 
 
-# === 6. ===
+# Feature per era
+# 6.
+feature_cols_summary = [
+    "danceability", "energy", "valence", "acousticness",
+    "speechiness", "instrumentalness", "liveness",
+    "tempo", "album_popularity", "track_popularity",
+]
+
+df_final["release_year"] = pd.to_datetime(
+    df_final["release_date"], errors="coerce"
+).dt.year
+
+# Album-level collapse: one row per album (avoid track-count bias)
+album_cols = ["album_name", "primary_artist_name", "release_year"]
+agg_dict = {c: "mean" for c in feature_cols_summary if c in df_final.columns}
+df_albums = df_final.dropna(subset=["release_year"]).groupby(
+    album_cols, as_index=False
+).agg(agg_dict)
+
+available_features = [c for c in feature_cols_summary if c in df_albums.columns]
+
+# Era (decade) summary
+df_albums["era"] = (df_albums["release_year"] // 10 * 10).astype(int).astype(str) + "s"
+df_albums["era_sort"] = df_albums["release_year"] // 10 * 10
+era_summary_df = (
+    df_albums.groupby(["era", "era_sort"])[available_features]
+    .mean()
+    .round(4)
+    .reset_index()
+    .sort_values("era_sort")
+)
+
+# Feature selection
+feature_labels = {
+    "danceability": "Danceability",
+    "energy": "Energy",
+    "valence": "Valence",
+    "acousticness": "Acousticness",
+    "speechiness": "Speechiness",
+    "instrumentalness": "Instrumentalness",
+    "liveness": "Liveness",
+    "tempo": "Tempo",
+    "album_popularity": "Album popularity",
+    "track_popularity": "Average track popularity",
+}
+
+print("\nAvailable features:")
+for i, f in enumerate(available_features):
+    print(f"  {i}) {feature_labels.get(f, f)}")
+feat_choice = input(f"Select feature index [0–{len(available_features)-1}, default=0]: ").strip()
+try:
+    feat_idx = int(feat_choice) if feat_choice else 0
+    feat_idx = max(0, min(feat_idx, len(available_features) - 1))
+except ValueError:
+    feat_idx = 0
+
+selected_feature = available_features[feat_idx]
+feature_label = feature_labels.get(selected_feature, selected_feature)
+value_format = ".1f" if selected_feature in ["tempo", "album_popularity", "track_popularity"] else ".2f"
+
+fig = go.Figure(go.Bar(
+    x=era_summary_df["era"],
+    y=era_summary_df[selected_feature],
+    text=era_summary_df[selected_feature].map(lambda v: f"{v:{value_format}}"),
+    textposition="outside",
+    marker_color="steelblue",
+))
+fig.update_layout(
+    title=f"Average {feature_label} by Decade",
+    xaxis_title="Era",
+    yaxis_title=feature_label,
+    template="plotly_white",
+)
+fig.show()
 
 
-con.close()
+# aggregate popularity by month
+# 7. 
+TOP_N = 10  # number of tracks to highlight
+
+q7 = """
+SELECT
+    t.id             AS track_id,
+    a.track_name     AS track_name,
+    t.track_popularity,
+    a.release_date,
+    a.artist_0       AS artist
+FROM tracks_data t
+JOIN albums_data a ON t.id = a.track_id
+WHERE a.release_date IS NOT NULL
+  AND t.track_popularity IS NOT NULL
+"""
+df_q7 = pd.read_sql(q7, con)
+
+df_q7["release_date"] = pd.to_datetime(df_q7["release_date"], errors="coerce")
+df_q7 = df_q7.dropna(subset=["release_date"])
+df_q7["month"] = df_q7["release_date"].dt.to_period("M").dt.to_timestamp()
+
+# Total popularity per track (summed across all month appearances)
+track_totals = (
+    df_q7.groupby(["track_id", "track_name", "artist"])["track_popularity"]
+    .sum()
+    .reset_index()
+    .sort_values("track_popularity", ascending=False)
+)
+
+top_tracks = track_totals.head(TOP_N)
+print(f"\nTop {TOP_N} tracks by total popularity:\n", top_tracks[["track_name", "artist", "track_popularity"]].to_string(index=False))
+
+# Monthly aggregate across all tracks
+monthly_agg = (
+    df_q7.groupby("month")["track_popularity"]
+    .agg(total_popularity="sum", avg_popularity="mean", track_count="count")
+    .reset_index()
+    .sort_values("month")
+)
+
+# Chart 1: overall monthly popularity
+fig7a = go.Figure()
+fig7a.add_trace(go.Bar(
+    x=monthly_agg["month"],
+    y=monthly_agg["total_popularity"],
+    name="Total popularity",
+    marker_color="steelblue",
+    opacity=0.7,
+))
+fig7a.add_trace(go.Scatter(
+    x=monthly_agg["month"],
+    y=monthly_agg["avg_popularity"],
+    name="Avg popularity",
+    mode="lines",
+    line=dict(color="tomato", width=2),
+    yaxis="y2",
+))
+fig7a.update_layout(
+    title="Monthly Track Popularity (all tracks)",
+    xaxis_title="Month",
+    yaxis=dict(title="Total popularity"),
+    yaxis2=dict(title="Avg popularity", overlaying="y", side="right"),
+    legend=dict(x=0.01, y=0.99),
+    template="plotly_white",
+)
+fig7a.show()
+
+# Chart 2: top-N tracks individual popularity trend
+df_top = df_q7[df_q7["track_id"].isin(top_tracks["track_id"])]
+monthly_top = (
+    df_top.groupby(["month", "track_name"])["track_popularity"]
+    .sum()
+    .reset_index()
+)
+
+fig7b = go.Figure()
+for track in top_tracks["track_name"]:
+    subset = monthly_top[monthly_top["track_name"] == track]
+    fig7b.add_trace(go.Scatter(
+        x=subset["month"],
+        y=subset["track_popularity"],
+        mode="lines+markers",
+        name=track,
+    ))
+fig7b.update_layout(
+    title=f"Monthly Popularity — Top {TOP_N} Tracks",
+    xaxis_title="Month",
+    yaxis_title="Track popularity",
+    template="plotly_white",
+)
+fig7b.show()
+
+
+# genres that appear together most frequently across tracks.
+# 8.
+
+q8 = """
+SELECT
+    a.track_id,
+    ad.genre_0, ad.genre_1, ad.genre_2, ad.genre_3, ad.genre_4
+FROM albums_data a
+JOIN artist_data ad ON a.artist_id = ad.id
+WHERE ad.genre_0 IS NOT NULL
+"""
+df_q8 = pd.read_sql(q8, con)
+
+genre_cols = ["genre_0", "genre_1", "genre_2", "genre_3", "genre_4"]
+
+# Build a set of genres per track (deduplicated, nulls dropped)
+df_q8["genres"] = df_q8[genre_cols].apply(
+    lambda row: list({g.strip().lower() for g in row if pd.notna(g) and str(g).strip()}),
+    axis=1,
+)
+
+# Count every co-occurring pair
+pair_counter = Counter()
+for genres in df_q8["genres"]:
+    if len(genres) >= 2:
+        for pair in combinations(sorted(genres), 2):
+            pair_counter[pair] += 1
+
+TOP_PAIRS = 20
+top_pairs = pd.DataFrame(
+    pair_counter.most_common(TOP_PAIRS),
+    columns=["genre_pair", "co_occurrence_count"],
+)
+top_pairs["label"] = top_pairs["genre_pair"].apply(lambda p: f"{p[0]}  ×  {p[1]}")
+
+print(f"\nTop {TOP_PAIRS} genre co-occurrences:\n", top_pairs[["label", "co_occurrence_count"]].to_string(index=False))
+
+fig8 = go.Figure(go.Bar(
+    x=top_pairs["co_occurrence_count"],
+    y=top_pairs["label"],
+    orientation="h",
+    marker_color="mediumpurple",
+    text=top_pairs["co_occurrence_count"],
+    textposition="outside",
+))
+fig8.update_layout(
+    title=f"Top {TOP_PAIRS} Genre Co-occurrences",
+    xaxis_title="Co-occurrence count",
+    yaxis=dict(autorange="reversed"),
+    template="plotly_white",
+    height=600,
+)
+fig8.show()
+
+
+
+#9
+query = """
+SELECT f.id AS track_id,
+       f.danceability,
+       a.artist_id
+FROM features_data f
+JOIN albums_data a ON f.id = a.track_id
+"""
+
+df = pd.read_sql(query, con)
+
+genre_query = """
+SELECT id AS artist_id,
+       genre_0, genre_1, genre_2, genre_3, genre_4
+FROM artist_data
+"""
+
+df_genre = pd.read_sql(genre_query, con)
+
+df = df.merge(df_genre, on="artist_id", how="left")
+
+df = df.dropna(subset=["danceability"])
+
+df["danceability_level"] = pd.qcut(
+    df["danceability"],5,labels=["very low", "low", "medium", "high", "very high"])
+
+low_high = df[df["danceability_level"].isin(["very low", "very high"])]
+
+highest = (
+    low_high
+    .sort_values("danceability", ascending=False)
+    [["danceability", "genre_0"]]
+    .iloc[0]
+)
+
+highest
+
+lowest = (
+    low_high
+    .sort_values("danceability", ascending=True)
+    [["danceability", "genre_0"]]
+    .iloc[0]
+)
+
+lowest
+
+genre_cols = ["genre_0", "genre_1", "genre_2", "genre_3", "genre_4"]
+
+# Explode all genre columns into one long series per level group
+def count_genres_for_group(df_group):
+    all_genres = (
+        df_group[genre_cols]
+        .apply(lambda col: col.dropna().str.strip().str.lower())
+        .values.flatten()
+    )
+    return (
+        pd.Series(all_genres)
+        .dropna()
+        .loc[lambda s: s != ""]
+        .value_counts()
+        .reset_index()
+        .rename(columns={"index": "genre", 0: "count"})
+    )
+
+TOP_GENRES = 15
+
+for level in ["very low", "very high"]:
+    group = low_high[low_high["danceability_level"] == level]
+    genre_counts = count_genres_for_group(group).head(TOP_GENRES)
+
+    print(f"\nTop genres — danceability '{level}' ({len(group)} tracks):")
+    print(genre_counts.to_string(index=False))
+
+    fig = go.Figure(go.Bar(
+        x=genre_counts["count"],
+        y=genre_counts["genre"],
+        orientation="h",
+        text=genre_counts["count"],
+        textposition="outside",
+        marker_color="steelblue" if level == "very low" else "tomato",
+    ))
+    fig.update_layout(
+        title=f"Most Common Genres — Danceability '{level.title()}'",
+        xaxis_title="Track count",
+        yaxis=dict(autorange="reversed"),
+        template="plotly_white",
+        height=500,
+    )
+    fig.show()
