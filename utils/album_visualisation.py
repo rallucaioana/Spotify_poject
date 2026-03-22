@@ -93,7 +93,6 @@ def render_album_header(summary_result, cover_data):
         )
 
 
-
         top_left, top_right = st.columns(2)
 
         with top_left:
@@ -158,19 +157,14 @@ def render_album_header(summary_result, cover_data):
 
 
 def render_album_feature_summary(feature_summary_result):
-    summary_df = feature_summary_result["summary_df"]
     metadata_df = feature_summary_result["metadata_df"]
     popularity_df = feature_summary_result["popularity_df"]
     audio_features_df = feature_summary_result["audio_features_df"]
-    variability_df = feature_summary_result["variability_df"]
     track_df = feature_summary_result["track_df"]
 
-    summary = summary_df.iloc[0]
     metadata = metadata_df.iloc[0]
     popularity = popularity_df.iloc[0]
     audio = audio_features_df.iloc[0]
-    variability = variability_df.iloc[0]
-    
 
     st.markdown("### Album details")
     
@@ -197,8 +191,6 @@ def render_album_feature_summary(feature_summary_result):
         
     with c4:
         st.metric("Explicit tracks", int(metadata["explicit_track_count"]))
-        
-        
         
 
     st.markdown("### Popularity")
@@ -524,6 +516,7 @@ def render_explicit_section(track_df):
 
     st.plotly_chart(bar_fig, width="stretch")
 
+# function to render the full page
 def render_album_summary_page(summary_result, cover_data):
     render_album_header(summary_result, cover_data)
     st.markdown("---")

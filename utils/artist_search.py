@@ -53,6 +53,7 @@ def build_artist_selector_df(df: pd.DataFrame):
 
     return artist_df
 
+
 # calculates an artist's overview summary statistics
 def get_artist_overview(df: pd.DataFrame, artist_id: str):
     df_artist = df[df["artist_ids"].astype(str).str.strip() == str(artist_id).strip()].copy()
@@ -149,7 +150,7 @@ def get_artist_releases(df: pd.DataFrame, artist_id: str):
     releases["release_date"] = pd.to_datetime(releases["release_date"], errors="coerce")
     releases["release_year"] = releases["release_date"].dt.year
 
-    # Second deduplication pass: same name + type + year with different album_ids are
+    # second deduplication pass: same name + type + year with different album_ids are
     # regional duplicates. Keeps the copy with the highest popularity.
     if "album_popularity" in releases.columns:
         releases = (

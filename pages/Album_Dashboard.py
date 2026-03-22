@@ -21,8 +21,8 @@ inconsistent_id_to_name = app_data["inconsistent_id_to_name"]
 reviewed_artist_name_overrides = app_data["reviewed_artist_name_overrides"]
 auto_resolved_artist_ids = app_data["auto_resolved_artist_ids"]
 
-# Pre-selection support
-# Prefer session state (navigating from artist page),
+# pre-selection support
+# prefer session state (navigating from artist page),
 # fall back to URL param (browser refresh).
 url_album_id = st.query_params.get("album_id", None)
 preselected_album_id = st.session_state.pop("preselected_album_id", None) or url_album_id
@@ -48,6 +48,7 @@ selected_label = st.selectbox(
     placeholder="Select an album",
 )
 
+# album summary
 if selected_label is not None:
     selected_row = album_selector_df.loc[
         album_selector_df["dropdown_label"] == selected_label

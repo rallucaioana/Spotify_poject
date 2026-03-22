@@ -32,11 +32,11 @@ def get_spotify_access_token():
         return response.json()["access_token"]
     
     except requests.exceptions.Timeout:
-        st.warning("Spotify authentication timed out. Album covers will be unavailable.", icon=":material/warning:")
+        st.warning("Spotify authentication timed out. Album covers and artist images will be unavailable.", icon=":material/warning:")
         return None
     
     except requests.exceptions.RequestException as e:
-        st.warning(f"Spotify authentication failed: {e}. Album covers will be unavailable.", icon=":material/warning:")
+        st.warning(f"Spotify authentication failed: {e}. Album covers and artist images will be unavailable.", icon=":material/warning:")
         return None
 
 
@@ -86,7 +86,6 @@ def _fetch_album_cover(album_id: str, token: str):
     data = response.json()
     images = data.get("images", [])
     
-    print(f"[Spotify API] GET /albums/{album_id}")
     # waiting to not overload the API
     time.sleep(0.1)
 
@@ -97,6 +96,7 @@ def _fetch_album_cover(album_id: str, token: str):
     }
 
 
+# gets the album cover from the spotify API and caches them for 24 hours
 @st.cache_data(ttl=86400)
 def get_album_cover_data(album_id: str):
     token = get_spotify_access_token()
@@ -122,8 +122,6 @@ def _fetch_artist_profile(artist_id: str, token: str):
     response.raise_for_status()
     data = response.json()
     images = data.get("images", [])
-    
-    print(f"[Spotify API] GET /artists/{artist_id}")
 
     return {
         "image_url": images[0]["url"] if images else None,

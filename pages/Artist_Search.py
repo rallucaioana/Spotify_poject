@@ -18,7 +18,7 @@ render_rate_limit_warning()
 
 artist_selector_df = build_artist_selector_df(df_final)
 
-# Read from URL on load
+# Read ID from URL on load
 preselected_artist_id = st.query_params.get("artist_id", None)
 
 default_artist_index = None
