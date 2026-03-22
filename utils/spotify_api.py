@@ -75,9 +75,12 @@ def _set_rate_limited(retry_after: int):
     st.session_state["spotify_rate_limited"] = True
     st.session_state["spotify_retry_after"] = retry_after
     st.session_state["spotify_rate_limited_at"] = time.time()
+    # Rerun so the page re-executes from the top, where render_rate_limit_warning()
+    # will now find the flag set and display the warning.
+    st.rerun()
 
 
-# Pure cached function: 
+# Pure cached function:
 # raises SpotifyRateLimitError on 429 so the result
 # is never cached (st.cache_data does not cache exceptions), keeping the
 # cache key as album_id only and leaving session state mutations to the wrapper.
