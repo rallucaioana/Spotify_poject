@@ -20,6 +20,8 @@ The dataset is stored in a SQLite database and contains the following tables:
 - tracks_data: track popularity and explicit content
 - features_data: audio features per track (danceability, energy, tempo, etc.)
 
+Uses Spotify Web API for fetching album covers and artist profile pictures. 
+
 ## Dashboard Features
 - Home page: general statistics and overview of the dataset
 - Album Dashboard: detailed analysis per album including audio features, popularity, and explicit track breakdown
