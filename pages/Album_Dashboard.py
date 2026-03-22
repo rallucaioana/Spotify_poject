@@ -22,12 +22,13 @@ reviewed_artist_name_overrides = app_data["reviewed_artist_name_overrides"]
 auto_resolved_artist_ids = app_data["auto_resolved_artist_ids"]
 
 # Pre-selection support
-# Pops immediately so it doesn't persist across subsequent manual selections.
-preselected_album_id = st.session_state.pop("preselected_album_id", None)
+# Prefer session state (navigating from artist page),
+# fall back to URL param (browser refresh).
+url_album_id = st.query_params.get("album_id", None)
+preselected_album_id = st.session_state.pop("preselected_album_id", None) or url_album_id
 
 default_index = None
 if preselected_album_id is not None:
-    options = album_selector_df["dropdown_label"].tolist()
     matching = album_selector_df.loc[
         album_selector_df["album_id"].astype(str).str.strip()
         == str(preselected_album_id).strip()
@@ -35,10 +36,9 @@ if preselected_album_id is not None:
     if not matching.empty:
         label = matching.iloc[0]["dropdown_label"]
         try:
-            default_index = options.index(label)
+            default_index = album_selector_df["dropdown_label"].tolist().index(label)
         except ValueError:
             default_index = None
-
 
 # Album selector
 selected_label = st.selectbox(

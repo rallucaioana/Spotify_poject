@@ -18,10 +18,25 @@ render_rate_limit_warning()
 
 artist_selector_df = build_artist_selector_df(df_final)
 
+# Read from URL on load
+preselected_artist_id = st.query_params.get("artist_id", None)
+
+default_artist_index = None
+if preselected_artist_id:
+    matching = artist_selector_df.loc[
+        artist_selector_df["artist_ids"].astype(str).str.strip() == str(preselected_artist_id).strip()
+    ]
+    if not matching.empty:
+        label = matching.iloc[0]["dropdown_label"]
+        try:
+            default_artist_index = artist_selector_df["dropdown_label"].tolist().index(label)
+        except ValueError:
+            default_artist_index = None
+
 selected_label = st.sidebar.selectbox(
     "Search for an artist",
     options=artist_selector_df["dropdown_label"].tolist(),
-    index=None,
+    index=default_artist_index,
     placeholder="Search by name...",
 )
 
@@ -33,6 +48,10 @@ selected_row = artist_selector_df.loc[
 ].iloc[0]
 
 artist_id = selected_row["artist_ids"]
+
+# Write selected artist to URL only if changed
+if st.query_params.get("artist_id") != artist_id:
+    st.query_params["artist_id"] = artist_id
 
 with st.spinner("Loading artist data..."):
     overview = get_artist_overview(df_final, artist_id)
@@ -52,7 +71,7 @@ img_col, stats_col = st.columns([1, 3], vertical_alignment="top")
 
 with img_col:
     if profile and profile.get("image_url"):
-        st.image(profile["image_url"], use_container_width=True)
+        st.image(profile["image_url"], width="stretch")
     else:
         st.markdown(
             "<div style='"
@@ -70,7 +89,7 @@ with img_col:
             "Open artist on Spotify",
             profile["spotify_url"],
             type="primary",
-            use_container_width=True,
+            width="stretch",
             icon=":material/headphones:",
         )
 
@@ -186,7 +205,7 @@ if st.session_state.get("spotify_rate_limited", False):
     covers = {}
 else:
     try:
-        with st.spinner("Loading album covers..."):
+        with st.spinner("Fetching album covers..."):
             album_ids = tuple(filtered_releases["album_id"].astype(str).tolist())
             covers = get_album_covers_batch(album_ids)
     except Exception:
@@ -255,12 +274,20 @@ for row_start in range(0, len(filtered_releases), TILES_PER_ROW):
                     text=f"Popularity: {int(popularity)}",
                 )
 
-            if st.button(
-                "Open in Album Dashboard",
-                key=f"open_{album_id}",
-                width="content",
-            ):
-                st.session_state["preselected_album_id"] = album_id
-                st.switch_page("pages/Album_Dashboard.py")
+            st.markdown(
+                f"<a href='/Album_Dashboard?album_id={album_id}' target='_self'>"
+                f"<button style='"
+                f"background:transparent;"
+                f"border:1px solid rgba(255,255,255,0.2);"
+                f"border-radius:0.5rem;"
+                f"color:white;"
+                f"padding:0.4rem 0.8rem;"
+                f"cursor:pointer;"
+                f"font-size:0.875rem;"
+                f"'>"
+                f"Open in Album Dashboard"
+                f"</button></a>",
+                unsafe_allow_html=True,
+            )
 
     st.markdown("")

@@ -67,7 +67,7 @@ def render_rate_limit_warning():
 
 
 # helper function for album cover fetching
-def _fetch_album_cover(album_id: str, token: str) -> dict:
+def _fetch_album_cover(album_id: str, token: str):
     # protects against errors when token could not be requested
     if token is None:
         return {"image_url": None, "spotify_url": None, "album_name": None}
@@ -85,6 +85,10 @@ def _fetch_album_cover(album_id: str, token: str) -> dict:
     response.raise_for_status()
     data = response.json()
     images = data.get("images", [])
+    
+    print(f"[Spotify API] GET /albums/{album_id}")
+    # waiting to not overload the API
+    time.sleep(0.1)
 
     return {
         "image_url": images[0]["url"] if images else None,
@@ -100,7 +104,7 @@ def get_album_cover_data(album_id: str):
 
 
 # helper function for artist image data fetching
-def _fetch_artist_profile(artist_id: str, token: str) -> dict:
+def _fetch_artist_profile(artist_id: str, token: str):
     # protects against errors when token could not be requested
     if token is None:
         return {"image_url": None, "spotify_url": None, "name": None}
@@ -118,6 +122,8 @@ def _fetch_artist_profile(artist_id: str, token: str) -> dict:
     response.raise_for_status()
     data = response.json()
     images = data.get("images", [])
+    
+    print(f"[Spotify API] GET /artists/{artist_id}")
 
     return {
         "image_url": images[0]["url"] if images else None,
@@ -133,71 +139,18 @@ def get_artist_profile_data(artist_id: str):
     return _fetch_artist_profile(artist_id, token)
 
 
-# gets album covers for multiple albums using the batch endpoint (up to 20 IDs per request)
-# falls back to sequential single requests per chunk if the batch endpoint returns 403
-# caches results for 24 hours
-@st.cache_data(ttl=86400)
-def get_album_covers_batch(album_ids: tuple) -> dict:
-    token = get_spotify_access_token()
+# gets album covers for a list of album ids
+def get_album_covers_batch(album_ids: tuple):
     covers = {}
-    ids = list(album_ids)
-    
-    # protects against errors when token could not be requested
-    if token is None:
+
+    if st.session_state.get("spotify_rate_limited", False):
         return {}
-    
-    for i in range(0, len(ids), 20):
-        chunk = [str(aid).strip() for aid in ids[i : i + 20]]
 
-        try:
-            response = requests.get(
-                f"{BASE_URL}/albums",
-                headers={"Authorization": f"Bearer {token}"},
-                params={"ids": ",".join(chunk)},
-                timeout=20,
-            )
-
-            # Rate limited, return whatever we have so far
-            if response.status_code == 429:                
-                retry_after = int(response.headers.get("Retry-After", 30))
-                st.session_state["spotify_rate_limited"] = True
-                st.session_state["spotify_retry_after"] = retry_after
-                st.session_state["spotify_rate_limited_at"] = time.time()
-                covers["__rate_limited__"] = True
-                return covers
-
-            if response.status_code == 403:
-                raise ValueError("batch_unavailable")
-
-            response.raise_for_status()
-
-            for album in response.json().get("albums") or []:
-                if album is None:
-                    continue
-                aid = album.get("id")
-                images = album.get("images", [])
-                covers[aid] = {
-                    "image_url": images[0]["url"] if images else None,
-                    "spotify_url": album.get("external_urls", {}).get("spotify"),
-                    "album_name": album.get("name"),
-                }
-
-            time.sleep(0.5)
-
-        except ValueError:
-            for aid in chunk:
-                try:
-                    result = _fetch_album_cover(aid, token)
-                    if st.session_state.get("spotify_rate_limited"):
-                        covers["__rate_limited__"] = True
-                        return covers
-                    covers[aid] = result
-                    time.sleep(0.1)
-                except Exception:
-                    covers[aid] = {
-                        "image_url": None,
-                        "spotify_url": None,
-                        "album_name": None,
-                    }
+    for aid in album_ids:
+        result = get_album_cover_data(aid)
+        if st.session_state.get("spotify_rate_limited"):
+            covers["__rate_limited__"] = True
+            return covers
+        covers[aid] = result
 
     return covers
