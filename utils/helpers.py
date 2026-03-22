@@ -67,6 +67,7 @@ def filter_by_year_range(df, year_range):
         (df["release_year"] <= end_year)
     ].copy()
 
+# Removes outliers by using the IQR method by computing Q1 and Q3, determining lower and upper bounds, and keeping only values within these bounds.
 def apply_iqr_filter(df: pd.DataFrame, column: str) -> pd.DataFrame:
     series = pd.to_numeric(df[column], errors="coerce").dropna()
 

@@ -245,9 +245,10 @@ if {"primary_artist_name", "artist_ids", "album_id", "album_type", "artist_popul
         hide_index=True,
     )
 
-
+# Featrue distribution 
 st.subheader("Feature distribution")
 
+# Feature selection
 feature_options = [
     "danceability",
     "energy",
@@ -265,11 +266,13 @@ feature_options = [
 
 available_feature_options = [col for col in feature_options if col in filtered_df.columns]
 
-selected_feature = st.selectbox(
+# Drop down to chose a feature 
+selected_feature = st.sidebar.selectbox(
     "Select feature",
     options=available_feature_options,
 )
 
+# Option to remove outliers 
 remove_outliers = st.checkbox("Remove outliers (IQR)", value=False)
 
 use_df = filtered_df.copy()
@@ -289,9 +292,11 @@ iqr_features = [
     "album_popularity",
 ]
 
+# Removes outliers 
 if remove_outliers and selected_feature in iqr_features:
     use_df = apply_iqr_filter(use_df, selected_feature)
 
+# Creates graphs 
 fig = go.Figure()
 
 fig.add_trace(

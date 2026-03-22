@@ -6,6 +6,8 @@ from utils.helpers import add_era_column, get_theme_colors
 
 PRIMARY_COLOR, PRIMARY_COLOR_FILL = get_theme_colors(fill_alpha=0.45)
 
+# Creates an album summary on era level by computing average feature values per album, then an average per era 
+# Returns an era level summary with averages per feature 
 @st.cache_data(show_spinner=False)
 def build_album_level_era_summary(df: pd.DataFrame):
     df = add_era_column(df)
@@ -49,6 +51,7 @@ def build_album_level_era_summary(df: pd.DataFrame):
 
     return era_summary, available_features
 
+# Similar to era level, but by year instead of decade 
 @st.cache_data(show_spinner=False)
 def build_album_level_year_summary(df: pd.DataFrame):
     feature_map = {
@@ -88,6 +91,7 @@ def build_album_level_year_summary(df: pd.DataFrame):
 
     return year_summary, available_features
 
+# Creates a bar chart showing averages of a feature per era 
 def render_era_bar_chart(df: pd.DataFrame, feature_col: str, \
                          feature_label: str, value_format: str = ".2f",):
 
@@ -161,7 +165,8 @@ def render_era_bar_chart(df: pd.DataFrame, feature_col: str, \
     )
 
     st.plotly_chart(fig, width="stretch")
-    
+
+# Creates a line chart showing the averages of a feature per year     
 def render_year_line_chart(df: pd.DataFrame, feature_col: str,
                            feature_label: str, value_format: str = ".2f"):
     chart_df = (
