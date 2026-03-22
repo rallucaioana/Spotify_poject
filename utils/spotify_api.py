@@ -171,3 +171,18 @@ def get_album_covers_batch(album_ids: tuple):
         covers[aid] = result
 
     return covers
+
+
+
+# --- TEMPORARY DEBUG: remove before production ---
+def render_rate_limit_debug():
+    with st.sidebar:
+        st.markdown("---")
+        st.caption("🐛 Rate limit debug")
+        if st.button("Simulate 429"):
+            _set_rate_limited(retry_after=30)
+        if st.button("Clear rate limit"):
+            st.session_state["spotify_rate_limited"] = False
+            st.session_state.pop("spotify_retry_after", None)
+            st.session_state.pop("spotify_rate_limited_at", None)
+            st.rerun()

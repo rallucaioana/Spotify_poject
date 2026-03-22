@@ -4,7 +4,7 @@ import pandas as pd
 from utils.load_session_data import ensure_app_data_loaded
 from utils.album_features import get_album_feature_summary_split
 from utils.album_visualisation import render_album_summary_page
-from utils.spotify_api import get_album_cover_data, render_rate_limit_warning
+from utils.spotify_api import get_album_cover_data, render_rate_limit_warning, render_rate_limit_debug
 
 st.set_page_config(layout="wide")
 st.title("Spotify Album Dashboard")
@@ -13,6 +13,7 @@ with st.spinner("Loading data from database..."):
     app_data = ensure_app_data_loaded()
 
 render_rate_limit_warning()
+render_rate_limit_debug()
 
 df_final = app_data["df_final"]
 album_selector_df = app_data["album_selector_df"]
