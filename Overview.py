@@ -11,7 +11,7 @@ PRIMARY_COLOR, PRIMARY_COLOR_FILL = get_theme_colors(fill_alpha=0.45)
 st.set_page_config(page_title="Spotify Dashboard", layout="wide")
 
 st.title("Spotify Dashboard")
-st.write("Welcome. Explore your Spotify database from the pages in the sidebar.")
+st.write("Explore a Spotify music database across albums, artists, audio features, and release history. Use the sidebar to navigate between pages.")
 
 data_loaded = "app_data" in st.session_state
 
@@ -36,7 +36,7 @@ min_year = int(df_final["release_year"].min())
 max_year = int(df_final["release_year"].max())
 
 year_range = st.sidebar.slider(
-    "Year range",
+    "Custom year range",
     min_value=min_year,
     max_value=max_year,
     value=(min_year, max_year),
