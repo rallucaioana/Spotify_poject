@@ -27,14 +27,14 @@ def get_spotify_access_token():
             data={"grant_type": "client_credentials"},
             timeout=20,
         )
-        
+
         response.raise_for_status()
         return response.json()["access_token"]
-    
+
     except requests.exceptions.Timeout:
         st.warning("Spotify authentication timed out. Album covers and artist images will be unavailable.", icon=":material/warning:")
         return None
-    
+
     except requests.exceptions.RequestException as e:
         st.warning(f"Spotify authentication failed: {e}. Album covers and artist images will be unavailable.", icon=":material/warning:")
         return None
@@ -66,26 +66,29 @@ def render_rate_limit_warning():
     st.warning(message, icon=":material/warning:")
 
 
-# helper function for album cover fetching
-def _fetch_album_cover(album_id: str, token: str):
-    # protects against errors when token could not be requested
+def _set_rate_limited(retry_after: int):
+    st.session_state["spotify_rate_limited"] = True
+    st.session_state["spotify_retry_after"] = retry_after
+    st.session_state["spotify_rate_limited_at"] = time.time()
+
+
+# Pure cached function — no session state access
+@st.cache_data(ttl=86400)
+def _cached_album_cover(album_id: str, token: str):
     if token is None:
-        return {"image_url": None, "spotify_url": None, "album_name": None}
-    
+        return {"image_url": None, "spotify_url": None, "album_name": None, "rate_limited": False}
+
     headers = {"Authorization": f"Bearer {token}"}
     response = requests.get(f"{BASE_URL}/albums/{album_id}", headers=headers, timeout=20)
 
     if response.status_code == 429:
         retry_after = int(response.headers.get("Retry-After", 30))
-        st.session_state["spotify_rate_limited"] = True
-        st.session_state["spotify_retry_after"] = retry_after
-        st.session_state["spotify_rate_limited_at"] = time.time()
-        return {"image_url": None, "spotify_url": None, "album_name": None}
+        return {"image_url": None, "spotify_url": None, "album_name": None, "rate_limited": True, "retry_after": retry_after}
 
     response.raise_for_status()
     data = response.json()
     images = data.get("images", [])
-    
+
     # waiting to not overload the API
     time.sleep(0.1)
 
@@ -93,31 +96,34 @@ def _fetch_album_cover(album_id: str, token: str):
         "image_url": images[0]["url"] if images else None,
         "spotify_url": data.get("external_urls", {}).get("spotify"),
         "album_name": data.get("name"),
+        "rate_limited": False,
     }
 
 
-# gets the album cover from the spotify API and caches them for 24 hours
-@st.cache_data(ttl=86400)
+# Non-cached wrapper: handles session state side effects
 def get_album_cover_data(album_id: str):
     token = get_spotify_access_token()
-    return _fetch_album_cover(album_id, token)
+    result = _cached_album_cover(album_id, token)
+
+    if result.get("rate_limited"):
+        _set_rate_limited(result.get("retry_after", 30))
+        return {"image_url": None, "spotify_url": None, "album_name": None}
+
+    return result
 
 
-# helper function for artist image data fetching
-def _fetch_artist_profile(artist_id: str, token: str):
-    # protects against errors when token could not be requested
+# Pure cached function, no session state access
+@st.cache_data(ttl=86400)
+def _cached_artist_profile(artist_id: str, token: str):
     if token is None:
-        return {"image_url": None, "spotify_url": None, "name": None}
-    
+        return {"image_url": None, "spotify_url": None, "name": None, "rate_limited": False}
+
     headers = {"Authorization": f"Bearer {token}"}
     response = requests.get(f"{BASE_URL}/artists/{artist_id}", headers=headers, timeout=20)
 
     if response.status_code == 429:
         retry_after = int(response.headers.get("Retry-After", 30))
-        st.session_state["spotify_rate_limited"] = True
-        st.session_state["spotify_retry_after"] = retry_after
-        st.session_state["spotify_rate_limited_at"] = time.time()
-        return {"image_url": None, "spotify_url": None, "name": None}
+        return {"image_url": None, "spotify_url": None, "name": None, "rate_limited": True, "retry_after": retry_after}
 
     response.raise_for_status()
     data = response.json()
@@ -127,14 +133,20 @@ def _fetch_artist_profile(artist_id: str, token: str):
         "image_url": images[0]["url"] if images else None,
         "spotify_url": data.get("external_urls", {}).get("spotify"),
         "name": data.get("name"),
+        "rate_limited": False,
     }
 
 
-# gets an artist's profile data and caches them for 24 hours
-@st.cache_data(ttl=86400)
+# Non-cached wrapper: handles session state side effects
 def get_artist_profile_data(artist_id: str):
     token = get_spotify_access_token()
-    return _fetch_artist_profile(artist_id, token)
+    result = _cached_artist_profile(artist_id, token)
+
+    if result.get("rate_limited"):
+        _set_rate_limited(result.get("retry_after", 30))
+        return {"image_url": None, "spotify_url": None, "name": None}
+
+    return result
 
 
 # gets album covers for a list of album ids
