@@ -77,6 +77,21 @@ top_era = (
     else "Unknown"
 )
 
+df_final = app_data["df_final"].copy()
+
+#sidebar option for features
+st.sidebar.markdown("Artist by Feature")
+
+feature_options = [
+    "danceability", "energy", "valence", "acousticness",
+    "speechiness", "instrumentalness", "liveness", "tempo"
+]
+
+selected_feature = st.sidebar.selectbox(
+    "Select feature",
+    feature_options
+)
+
 st.subheader("Overview")
 
 col1, col2, col3, col4 = st.columns(4)
@@ -312,3 +327,79 @@ fig.update_layout(
 )
 
 st.plotly_chart(fig, width="stretch")
+
+st.subheader("Artists by Feature")
+
+#range for top or bottom ranking
+top_n = st.slider(
+    "Number of artists",
+    min_value=1,
+    max_value=30,
+    value=10
+)
+
+#choice for top or bottom ranking
+rank_direction = st.radio(
+    "Show",
+    ["Top artists", "Bottom artists"]
+)
+
+artist_col = "primary_artist_name"
+
+#filter artists with more than 3 tracks
+artist_counts = df_final.groupby(artist_col).size()
+valid_artists = artist_counts[artist_counts >= 3].index
+df_filtered = df_final[df_final[artist_col].isin(valid_artists)]
+
+#choose function for either top or bottom ranking
+if rank_direction == "Top artists":
+    artists_df = get_top_artists_by_feature(
+        df_filtered,
+        selected_feature,
+        top_n=top_n
+    )
+else:
+    artists_df = get_bottom_artists_by_feature(
+        df_filtered,
+        selected_feature,
+        top_n=top_n
+    )
+
+#plot artist by feature
+fig = go.Figure()
+
+fig.add_trace(
+    go.Bar(
+        x=artists_df["avg_feature"],
+        y=artists_df["primary_artist_name"],
+        orientation="h",
+        marker=dict(
+            color=PRIMARY_COLOR_FILL,
+            line=dict(color=PRIMARY_COLOR, width=2),
+        ),
+        hovertemplate=(
+            f"Artist: %{{y}}<br>{selected_feature}: %{{x:.2f}}<extra></extra>"
+        ),
+    )
+)
+
+fig.update_layout(
+    title=f"{rank_direction} by {selected_feature}",
+    paper_bgcolor="rgba(0,0,0,0)",
+    plot_bgcolor="rgba(0,0,0,0)",
+    font=dict(color="#FFFFFF"),
+    xaxis=dict(
+        title="Average value",
+        tickfont=dict(color="#B3B3B3"),
+        gridcolor="#333333",
+        zeroline=False,
+    ),
+    yaxis=dict(
+        title="Artist",
+        tickfont=dict(color="#B3B3B3"),
+        showgrid=False,
+        zeroline=False,
+        autorange="reversed",
+    ),
+    height=600
+)
