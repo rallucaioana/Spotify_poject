@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 
-
+# gets all collaborators from a release
 def extract_album_collaborators(df_album, primary_artist_name):
     if "artist_names" not in df_album.columns:
         return []
@@ -18,6 +18,7 @@ def extract_album_collaborators(df_album, primary_artist_name):
     return collaborators
 
 
+# gets all genres for the primary artist of a release
 def extract_primary_artist_genres(df_album):
     genre_cols = [f"genre_{i}" for i in range(7) if f"genre_{i}" in df_album.columns]
 
@@ -41,8 +42,7 @@ def extract_primary_artist_genres(df_album):
     return sorted(genres)
 
 
-
-
+# creates the feature summary of an album
 def get_album_feature_summary(df, album_id):
     if "album_id" not in df.columns:
         raise ValueError("df must contain an \"album_id\" column.")
@@ -177,6 +177,7 @@ def get_album_feature_summary(df, album_id):
     }
 
 
+# splits the created feature summary in separate dfs
 def get_album_feature_summary_split(df, album_id, track_df=None):
     result = get_album_feature_summary(df, album_id)
     s = result["summary_df"].iloc[0]
@@ -245,11 +246,13 @@ def get_album_feature_summary_split(df, album_id, track_df=None):
         "track_df": track_df,
     }
 
+# gets the count of explicit songs on a release
 def get_explicit_counts(track_df):
     explicit_df = track_df["explicit"].map({True: "Explicit", False: "Non-Explicit"}).value_counts().reset_index()
     explicit_df.columns = ["type", "count"]
     return explicit_df
 
+# gets the popularity of the explicit songs on a release
 def get_explicit_popularity(track_df):
     popularity_df = track_df.groupby(
         track_df["explicit"].map({True: "Explicit", False: "Non-Explicit"})

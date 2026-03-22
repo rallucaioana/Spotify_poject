@@ -18,7 +18,7 @@ REVIEWED_ARTIST_NAME_OVERRIDES = [
 ]
 
 # Auto-resolution parameters
-# A name->multiID group is auto-resolved when:
+# A name -> multiID group is auto-resolved when:
 #   - total rows in the group  >= MIN_ROWS_FOR_RESOLUTION
 #   - the single dominant ID accounts for >= DOMINANCE_THRESHOLD of those rows
 #
@@ -29,7 +29,7 @@ MIN_ROWS_FOR_RESOLUTION: int = 5
 
 # Groups that didn't meet the dominance threshold but have at most TIEBREAK_MAX_IDS
 # distinct IDs are resolved by a deterministic tiebreak (alphabetically first artist_id).
-# This is safe for 2-ID groups — two profiles for the same artist on Spotify is the
+# This is safe for 2-ID groups, as two profiles for the same artist on Spotify is the
 # overwhelmingly likely explanation. Set to 0 or 1 to disable tiebreak resolution.
 TIEBREAK_MAX_IDS: int = 2
 
@@ -76,8 +76,8 @@ def _prepare_primary_artist_df(df):
 
 
 # Audit helpers
+# Normalises the artist names mapped to multiple artist ids
 def audit_artist_name_to_id(df):
-    """Same normalised artist name mapped to multiple artist IDs."""
     audit_df = _prepare_primary_artist_df(df)
 
     result = (
@@ -98,9 +98,8 @@ def audit_artist_name_to_id(df):
 
     return result.loc[result["artist_id_count"] > 1].copy()
 
-
+# checks for artist ids with different name variants linked to them
 def audit_artist_id_to_name(df):
-    """Same artist ID appearing with multiple name variants."""
     audit_df = _prepare_primary_artist_df(df)
 
     result = (
@@ -123,9 +122,8 @@ def audit_artist_id_to_name(df):
     return result.loc[result["name_variant_count"] > 1].copy()
 
 
-# Name canonicalization (same ID, multiple names)
+# Name canonicalization (same ID, multiple names) selected by most-frequent occurence, alphabetical tie-break
 def build_artist_id_canonical_map(df):
-    """One canonical primary artist name per artist ID (most-frequent, alphabetical tie-break)."""
     audit_df = _prepare_primary_artist_df(df)
 
     canonical = (
@@ -142,8 +140,8 @@ def build_artist_id_canonical_map(df):
     return canonical
 
 
+# standardises the artist names with the same id and multiple names
 def apply_canonical_primary_artist_names(df):
-    """Standardises display names for same-ID / multi-name cases."""
     required_cols = ["primary_artist_name", "artist_ids"]
     missing = [col for col in required_cols if col not in df.columns]
     if missing:
@@ -171,19 +169,7 @@ def build_auto_resolution_map(
     df,
     dominance_threshold: float = DOMINANCE_THRESHOLD,
     min_total_rows: int = MIN_ROWS_FOR_RESOLUTION):
-    """
-    Identifies name->multiID groups where one artist_id dominates enough to be
-    treated as the canonical ID automatically.
 
-    Eligibility criteria (both must hold):
-      - total rows for the name_key >= min_total_rows
-      - the single most-common artist_id accounts for >= dominance_threshold
-        of the group's rows
-
-    Returns a DataFrame with one row per resolvable name_key:
-      artist_name_key | canonical_artist_id | dominant_row_count |
-      total_row_count | dominance_ratio     | artist_id_count
-    """
     audit_df = _prepare_primary_artist_df(df)
 
     counts = (
@@ -235,25 +221,13 @@ def build_auto_resolution_map(
         .reset_index(drop=True)
     )
 
-
+# Select alphabetical artist_id for unresolved name -> multiID groups with less than tiebreak_max_ids and mark resolution_method='tiebreak'
 def build_tiebreak_resolution_map(
     df,
     dominance_threshold: float = DOMINANCE_THRESHOLD,
     min_total_rows: int = MIN_ROWS_FOR_RESOLUTION,
     tiebreak_max_ids: int = TIEBREAK_MAX_IDS):
-    """
-    Finds name->multiID groups that were NOT resolved by dominance (either because
-    no single ID was dominant enough, or total rows were below min_total_rows) but
-    have at most ``tiebreak_max_ids`` distinct IDs.
 
-    For these groups the alphabetically-first artist_id is selected as canonical.
-    This is a safe assumption for 2-ID cases: two Spotify profiles for the same
-    artist is far more likely than two genuinely different artists sharing a name.
-    Groups with 3+ IDs are always left for manual review.
-
-    Returns a DataFrame with the same schema as build_auto_resolution_map, plus a
-    ``resolution_method`` column set to ``"tiebreak"`` for all rows.
-    """
     if tiebreak_max_ids < 2:
         return pd.DataFrame(
             columns=[
@@ -262,7 +236,7 @@ def build_tiebreak_resolution_map(
             ]
         )
 
-    # IDs already resolved by dominance — exclude them
+    # IDs already resolved by dominance
     dominance_resolved = build_auto_resolution_map(df, dominance_threshold, min_total_rows)
     already_resolved_keys = set(dominance_resolved["artist_name_key"])
 
@@ -293,7 +267,7 @@ def build_tiebreak_resolution_map(
         & (~counts["artist_name_key"].isin(already_resolved_keys))
     ].copy()
 
-    # Pick alphabetically-first artist_id as canonical (deterministic, reproducible)
+    # Pick alphabetically-first artist_id as canonical
     tiebreak = (
         candidates.sort_values(["artist_name_key", "artist_ids"])
         .drop_duplicates(subset=["artist_name_key"], keep="first")
@@ -311,36 +285,13 @@ def build_tiebreak_resolution_map(
     return tiebreak
 
 
+# Auto-resolve same-name multi-ID groups via dominance first, then 2-ID tiebreak
 def resolve_ambiguous_artist_ids(
     df,
     dominance_threshold: float = DOMINANCE_THRESHOLD,
     min_total_rows: int = MIN_ROWS_FOR_RESOLUTION,
     tiebreak_max_ids: int = TIEBREAK_MAX_IDS,):
-    """
-    Auto-resolves same-name / multi-ID ambiguity in two passes:
 
-    Pass 1 - Dominance: groups where one artist_id accounts for >= dominance_threshold
-      of rows (and total rows >= min_total_rows) are remapped to that dominant ID.
-
-    Pass 2 - Tiebreak: groups that weren't resolved in pass 1 but have at most
-      tiebreak_max_ids distinct IDs (default: 2) are resolved by picking the
-      alphabetically-first artist_id. Two-ID groups are overwhelmingly likely to
-      be duplicate Spotify profiles for the same artist rather than genuinely
-      different artists sharing a name. Groups with 3+ IDs are left for manual
-      review via REVIEWED_ARTIST_NAME_OVERRIDES.
-
-    apply_canonical_primary_artist_names is re-run after both passes so display
-    names stay consistent with updated IDs.
-
-    Returns
-    -------
-    df_resolved : pd.DataFrame
-        Input dataframe with corrected artist_ids (and primary_artist_name).
-        Boolean column ``auto_resolved_artist_id`` marks rows that were changed.
-    resolution_summary : pd.DataFrame
-        One row per resolved artist_name_key. Includes a ``resolution_method``
-        column: ``"dominance"`` for pass-1 resolutions, ``"tiebreak"`` for pass-2.
-    """
     dominance_map = build_auto_resolution_map(df, dominance_threshold, min_total_rows)
     dominance_map["resolution_method"] = "dominance"
 
@@ -383,7 +334,7 @@ def resolve_ambiguous_artist_ids(
         .rename(columns={"_name_key": "artist_name_key"})
     )
 
-    # Drop the working column — it's an internal computation artifact
+    # Drop the working column
     result = result.drop(columns=["auto_resolved_artist_id"])
 
     resolution_summary = resolution_map_df.merge(remapped_counts, on="artist_name_key", how="left")
@@ -394,13 +345,9 @@ def resolve_ambiguous_artist_ids(
     return result, resolution_summary
 
 
-# Ambiguity flagging
+# Flag rows where artist_name_key still maps to multiple IDs after auto-resolution
 def flag_ambiguous_primary_artist_names(df):
-    """
-    Flags rows whose artist_name_key still maps to multiple IDs after auto-resolution.
-    Only unresolved cases (those that didn't meet the dominance threshold, or were
-    genuinely different artists) will be flagged here.
-    """
+
     result = df.copy()
 
     if "primary_artist_name" not in result.columns:
@@ -421,7 +368,6 @@ def flag_ambiguous_primary_artist_names(df):
 
 
 # Manual override layer
-
 def build_reviewed_override_table():
     if not REVIEWED_ARTIST_NAME_OVERRIDES:
         return pd.DataFrame(
@@ -436,11 +382,9 @@ def build_reviewed_override_table():
     return pd.DataFrame(REVIEWED_ARTIST_NAME_OVERRIDES).copy()
 
 
+# Apply manual overrides and mark rows matching the preferred_artist_id
 def apply_reviewed_artist_overrides(df):
-    """
-    Optional manual review layer. Annotates rows with override metadata and
-    marks which rows match the preferred_artist_id.
-    """
+
     result = df.copy()
 
     if "primary_artist_name" not in result.columns or "artist_ids" not in result.columns:
@@ -470,31 +414,10 @@ def apply_reviewed_artist_overrides(df):
 
 
 # Top-level pipeline entry point
+# canonicalize names, auto-resolve multi-ID cases, 
+# flag unresolved groups, apply manual overrides, and return summary outputs.
 def build_artist_quality_report(df):
-    """
-    Full artist data-quality pipeline. Steps in order:
 
-    1. Canonicalize display names for same-ID / multi-name variants.
-    2. Auto-resolve same-name / multi-ID cases in two passes:
-         a. Dominance: one ID accounts for >= DOMINANCE_THRESHOLD of rows.
-         b. Tiebreak: remaining groups with <= TIEBREAK_MAX_IDS distinct IDs
-            are resolved by picking the alphabetically-first artist_id.
-            Groups with 3+ IDs are left for manual review.
-    3. Re-canonicalize display names after ID remapping.
-    4. Flag any remaining unresolved ambiguous name->ID pairs (3+ ID groups
-       that didn't meet any resolution criteria).
-    5. Apply REVIEWED_ARTIST_NAME_OVERRIDES annotations for manual cases.
-
-    Returns
-    -------
-    dict with keys:
-      df_fixed                   - cleaned dataframe ready for downstream use
-      ambiguous_name_to_id       - remaining unresolved name->multiID cases
-      inconsistent_id_to_name    - same-ID / multi-name cases (post-fix)
-      reviewed_artist_name_overrides  - contents of REVIEWED_ARTIST_NAME_OVERRIDES
-      auto_resolved_artist_ids   - summary DataFrame of what step 2 resolved,
-                                   including a ``resolution_method`` column
-    """
     # Step 1 – fix same-ID name variants
     df_fixed = apply_canonical_primary_artist_names(df)
 
@@ -515,7 +438,6 @@ def build_artist_quality_report(df):
     reviewed_artist_name_overrides = build_reviewed_override_table()
 
     # Drop internal pipeline columns that have no downstream use in the UI.
-    # is_artist_name_ambiguous is kept — it is read by album_features.py.
     _internal_cols = [
         "artist_name_key",
         "artist_collision_bucket",

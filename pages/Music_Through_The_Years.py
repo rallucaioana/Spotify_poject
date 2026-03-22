@@ -4,13 +4,13 @@ import plotly.graph_objects as go
 
 from utils.helpers import prepare_year_column, filter_by_year_range
 from utils.time_trends import build_album_level_era_summary, build_album_level_year_summary, render_era_bar_chart, render_year_line_chart
+from utils.load_session_data import ensure_app_data_loaded
 
 st.set_page_config(layout="wide")
 st.title("Music Through the Years")
 
-if "app_data" not in st.session_state:
-    st.warning("Load the dataset from the Home page first.")
-    st.stop()
+with st.spinner("Loading data from database..."):
+    app_data = ensure_app_data_loaded()
 
 df_final = st.session_state["app_data"]["df_final"].copy()
 

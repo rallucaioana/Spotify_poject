@@ -23,6 +23,7 @@ def normalise_apostrophe_caps(text):
 
     return text
 
+# adds a column for the era of a release
 def add_era_column(df: pd.DataFrame) -> pd.DataFrame:
     result = df.copy()
 
@@ -38,6 +39,7 @@ def add_era_column(df: pd.DataFrame) -> pd.DataFrame:
 
     return result
 
+# gets the theme colors from the config file
 def get_theme_colors(fill_alpha=0.45) -> tuple[str, str]:
     with open(".streamlit/config.toml", "rb") as f:
         config = tomllib.load(f)

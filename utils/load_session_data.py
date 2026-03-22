@@ -10,9 +10,9 @@ from utils.artist_audits import (
     build_reviewed_override_table,
 )
 
-
+# builds the album selector list
 @st.cache_data(show_spinner=False)
-def build_album_selector_df(df: pd.DataFrame) -> pd.DataFrame:
+def build_album_selector_df(df: pd.DataFrame):
     required_cols = [
         "album_id",
         "album_name",
@@ -69,8 +69,9 @@ def build_album_selector_df(df: pd.DataFrame) -> pd.DataFrame:
     return selector_df
 
 
+# loads the data
 @st.cache_data(show_spinner=False)
-def load_app_data() -> dict:
+def load_app_data():
     df_raw = load_raw_spotify_data()
 
     artist_quality_raw = build_artist_quality_report(df_raw)
@@ -78,7 +79,7 @@ def load_app_data() -> dict:
 
     df_final = build_clean_dataset(df_fixed)
 
-    # Run audits directly on the cleaned data — no need to re-run the full
+    # Run audits directly on the cleaned data, no need to re-run the full
     # resolution pipeline since df_final already has corrected artist IDs.
     album_selector_df = build_album_selector_df(df_final)
 
@@ -91,8 +92,8 @@ def load_app_data() -> dict:
         "auto_resolved_artist_ids": artist_quality_raw["auto_resolved_artist_ids"],
     }
 
-
-def ensure_app_data_loaded() -> dict:
+# high level data loader ran on every page to check if the dataset is loaded into cache
+def ensure_app_data_loaded():
     if "app_data" not in st.session_state:
         st.session_state["app_data"] = load_app_data()
     return st.session_state["app_data"]
