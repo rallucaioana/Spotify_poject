@@ -15,7 +15,7 @@ st.write("Welcome. Explore your Spotify database from the pages in the sidebar."
 data_loaded = "app_data" in st.session_state
 
 if not data_loaded:
-    with st.spinner("Loading Spotify data..."):
+    with st.spinner("Loading data from database..."):
         ensure_app_data_loaded()
     st.session_state["just_loaded"] = True
     st.rerun()

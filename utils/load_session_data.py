@@ -78,7 +78,7 @@ def load_app_data() -> dict:
 
     df_final = build_clean_dataset(df_fixed)
 
-    # Run audits directly on the cleaned data — no need to re-run the full
+    # Run audits directly on the cleaned data, no need to re-run the full
     # resolution pipeline since df_final already has corrected artist IDs.
     album_selector_df = build_album_selector_df(df_final)
 
