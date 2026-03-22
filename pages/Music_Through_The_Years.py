@@ -19,6 +19,7 @@ df_final = prepare_year_column(df_final)
 min_year = int(df_final["release_year"].min())
 max_year = int(df_final["release_year"].max())
 
+#Creates a slider in the sidebar to filter the data by a year range and stored in session state 
 default_year_range = st.session_state.get("year_range", (min_year, max_year))
 
 year_range = st.sidebar.slider(
@@ -33,6 +34,7 @@ st.session_state["year_range"] = year_range
 
 df_final = filter_by_year_range(df_final, year_range)
 
+#Creates summary tables by era and by year 
 era_summary_df, available_features = build_album_level_era_summary(df_final)
 year_summary_df, _ = build_album_level_year_summary(df_final)
 
@@ -45,17 +47,20 @@ if era_summary_df.empty:
     st.info("No era data available.")
     st.stop()
 
+# Lets the users pick their view, by era or by year 
 view_mode = st.radio(
     "View mode",
     options=["Per decade", "Per year"],
     horizontal=True,
 )
 
+# Shows the chosen table 
 if view_mode == "Per decade":
     st.dataframe(era_summary_df.drop(columns=["era_sort"]), width="stretch")
 else:
     st.dataframe(year_summary_df, width="stretch")
     
+# Feature selection
 feature_labels = {
     "danceability": "Danceability",
     "energy": "Energy",
@@ -72,6 +77,7 @@ feature_labels = {
 default_feature = "danceability"
 default_index = available_features.index(default_feature) if default_feature in available_features else 0
 
+# a drop down for selecting which feature to show
 selected_feature = st.selectbox(
     "Select feature",
     options=available_features,
@@ -85,6 +91,7 @@ value_format = (
     else ".2f"
 )
 
+#Shows the graph corresponding to the chosen view mode 
 if view_mode == "Per decade":
     render_era_bar_chart(
         era_summary_df,
