@@ -80,19 +80,6 @@ top_era = (
 
 df_final = app_data["df_final"].copy()
 
-#sidebar option for features
-st.sidebar.markdown("Artist by Feature")
-
-feature_options = [
-    "danceability", "energy", "valence", "acousticness",
-    "speechiness", "instrumentalness", "liveness", "tempo"
-]
-
-selected_feature = st.sidebar.selectbox(
-    "Select feature",
-    feature_options
-)
-
 st.subheader("Overview")
 
 col1, col2, col3, col4 = st.columns(4)
