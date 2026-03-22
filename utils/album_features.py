@@ -246,13 +246,13 @@ def get_album_feature_summary_split(df, album_id, track_df=None):
         "track_df": track_df,
     }
 
-# gets the count of explicit songs on a release
+#Returns the count of explicit and non-explicit tracks as a dataframe
 def get_explicit_counts(track_df):
     explicit_df = track_df["explicit"].map({True: "Explicit", False: "Non-Explicit"}).value_counts().reset_index()
     explicit_df.columns = ["type", "count"]
     return explicit_df
 
-# gets the popularity of the explicit songs on a release
+#Returns the average track popularity for explicit and non-explicit tracks
 def get_explicit_popularity(track_df):
     popularity_df = track_df.groupby(
         track_df["explicit"].map({True: "Explicit", False: "Non-Explicit"})

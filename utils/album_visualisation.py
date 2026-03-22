@@ -464,6 +464,8 @@ def render_album_feature_summary(feature_summary_result):
         },
     )
     
+#The explicit vs non-explicit section on the album dashboard
+#shows a pie chart, a table of explicit tracks and a bar chart comparing average popularity
 
 def render_explicit_section(track_df):
     st.markdown("### Explicit vs Non-Explicit tracks")
