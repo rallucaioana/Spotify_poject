@@ -48,7 +48,7 @@ if era_summary_df.empty:
     st.stop()
 
 # Lets the users pick their view, by era or by year 
-view_mode = st.radio(
+view_mode = st.sidebar.radio(
     "View mode",
     options=["Per decade", "Per year"],
     horizontal=True,
@@ -78,7 +78,7 @@ default_feature = "danceability"
 default_index = available_features.index(default_feature) if default_feature in available_features else 0
 
 # a drop down for selecting which feature to show
-selected_feature = st.selectbox(
+selected_feature = st.sidebar.selectbox(
     "Select feature",
     options=available_features,
     index=default_index,

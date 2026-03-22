@@ -254,9 +254,9 @@ feature_options = [
 available_feature_options = [col for col in feature_options if col in filtered_df.columns]
 
 # Drop down to chose a feature 
-selected_feature = st.sidebar.selectbox(
+selected_feature = st.selectbox(
     "Select feature",
-    options=available_feature_options,
+    options=[feature.title() for feature in available_feature_options],
 )
 
 # Option to remove outliers 
@@ -288,7 +288,7 @@ fig = go.Figure()
 
 fig.add_trace(
     go.Histogram(
-        x=pd.to_numeric(use_df[selected_feature], errors="coerce").dropna(),
+        x=pd.to_numeric(use_df[selected_feature.lower()], errors="coerce").dropna(),
         nbinsx=30,
         marker=dict(
             color=PRIMARY_COLOR_FILL,
@@ -348,13 +348,13 @@ df_filtered = df_final[df_final[artist_col].isin(valid_artists)]
 if rank_direction == "Top artists":
     artists_df = get_top_artists_by_feature(
         df_filtered,
-        selected_feature,
+        selected_feature.lower(),
         top_n=top_n
     )
 else:
     artists_df = get_bottom_artists_by_feature(
         df_filtered,
-        selected_feature,
+        selected_feature.lower(),
         top_n=top_n
     )
 
@@ -371,13 +371,13 @@ fig.add_trace(
             line=dict(color=PRIMARY_COLOR, width=2),
         ),
         hovertemplate=(
-            f"Artist: %{{y}}<br>{selected_feature}: %{{x:.2f}}<extra></extra>"
+            f"Artist: %{{y}}<br>{selected_feature.lower()}: %{{x:.2f}}<extra></extra>"
         ),
     )
 )
 
 fig.update_layout(
-    title=f"{rank_direction} by {selected_feature}",
+    title=f"{rank_direction} by {selected_feature.lower()}",
     paper_bgcolor="rgba(0,0,0,0)",
     plot_bgcolor="rgba(0,0,0,0)",
     font=dict(color="#FFFFFF"),
