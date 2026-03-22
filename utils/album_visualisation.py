@@ -60,10 +60,21 @@ def render_album_header(summary_result, cover_data):
     with cover_col:
         if cover_data and cover_data.get("image_url"):
             st.image(cover_data["image_url"], width="stretch")
+        else:
+            st.markdown(
+                "<div style='"
+                "width:100%; aspect-ratio:1/1;"
+                "background:#232323;"
+                "border-radius:4px;"
+                "display:flex; align-items:center; justify-content:center;"
+                "font-size:5rem;"
+                "'>💿</div>",
+                unsafe_allow_html=True,
+            )
 
         if cover_data and cover_data.get("spotify_url"):
-            st.link_button("Open album on Spotify", cover_data["spotify_url"], type="primary", 
-                           use_container_width=True, icon=":material/headphones:")
+            st.link_button("Open album on Spotify", cover_data["spotify_url"], type="primary",
+                        use_container_width=True, icon=":material/headphones:")
 
 
     with meta_col:
@@ -80,7 +91,6 @@ def render_album_header(summary_result, cover_data):
             """,
             unsafe_allow_html=True
         )
-
 
 
         top_left, top_right = st.columns(2)
@@ -147,19 +157,14 @@ def render_album_header(summary_result, cover_data):
 
 
 def render_album_feature_summary(feature_summary_result):
-    summary_df = feature_summary_result["summary_df"]
     metadata_df = feature_summary_result["metadata_df"]
     popularity_df = feature_summary_result["popularity_df"]
     audio_features_df = feature_summary_result["audio_features_df"]
-    variability_df = feature_summary_result["variability_df"]
     track_df = feature_summary_result["track_df"]
 
-    summary = summary_df.iloc[0]
     metadata = metadata_df.iloc[0]
     popularity = popularity_df.iloc[0]
     audio = audio_features_df.iloc[0]
-    variability = variability_df.iloc[0]
-    
 
     st.markdown("### Album details")
     
@@ -187,11 +192,9 @@ def render_album_feature_summary(feature_summary_result):
     with c4:
         st.metric("Explicit tracks", int(metadata["explicit_track_count"]))
         
-        
-        
 
     st.markdown("### Popularity")
-    c1, c2, c3, c4, c5 = st.columns(5)
+    c1, c2, c3, c4 = st.columns(4)
 
     with c1:
         st.metric("Album popularity", f"{popularity['album_popularity']:.1f}")
@@ -200,12 +203,9 @@ def render_album_feature_summary(feature_summary_result):
         st.metric("Avg track popularity", f"{popularity['avg_track_popularity']:.1f}")
 
     with c3:
-        st.metric("Median track popularity", f"{popularity['median_track_popularity']:.1f}")
-
-    with c4:
         st.metric("Primary artist popularity", f"{popularity['primary_artist_popularity']:.1f}")
 
-    with c5:
+    with c4:
         if pd.notna(popularity["primary_artist_followers"]):
             st.metric("Primary artist followers", f"{popularity['primary_artist_followers']:,.0f}")
         else:
@@ -288,7 +288,7 @@ def render_album_feature_summary(feature_summary_result):
 
     st.plotly_chart(radar_fig, width="stretch")
 
-    c1, c2, c3, c4 = st.columns(4)
+    c1, c2, c3 = st.columns(3)
     with c1:
         st.metric("Avg tempo", f"{audio['avg_tempo']:.1f} BPM")
     with c2:
@@ -305,72 +305,6 @@ def render_album_feature_summary(feature_summary_result):
             duration_display = "N/A"
 
         st.metric("Avg duration", duration_display)
-    with c4:
-        st.metric("Avg time signature", f"{audio['avg_time_signature']:.2f}")
-
-
-    st.markdown("### Variability")
-
-    variability_chart_df = pd.DataFrame({
-        "metric": [
-            "Danceability std",
-            "Energy std",
-            "Valence std",
-            "Tempo std",
-        ],
-        "value": [
-            variability["danceability_std"],
-            variability["energy_std"],
-            variability["valence_std"],
-            variability["tempo_std"],
-        ],
-    })
-
-    bar_fig = go.Figure()
-
-    bar_fig.add_trace(
-        go.Bar(
-            x=variability_chart_df["metric"],
-            y=variability_chart_df["value"],
-            marker=dict(
-                color=PRIMARY_COLOR_FILL,
-                line=dict(color=PRIMARY_COLOR, width=2),
-            ),
-            hovertemplate="%{x}: %{y:.3f}<extra></extra>",
-        )
-    )
-
-    bar_fig.update_layout(
-        paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(0,0,0,0)",
-        font=dict(color="#FFFFFF"),
-        xaxis=dict(
-            title="",
-            tickfont=dict(color="#B3B3B3"),
-            showgrid=False,
-            zeroline=False,
-        ),
-        yaxis=dict(
-            title="",
-            tickfont=dict(color="#B3B3B3"),
-            gridcolor="#333333",
-            zeroline=False,
-        ),
-        showlegend=False,
-        height=350,
-        margin=dict(l=40, r=40, t=20, b=40),
-    )
-
-    st.plotly_chart(bar_fig, width="stretch")
-
-
-    c1, c2, c3 = st.columns(3)
-    with c1:
-        st.metric("Min tempo", f"{variability['min_tempo']:.1f} BPM")
-    with c2:
-        st.metric("Median tempo", f"{variability['median_tempo']:.1f} BPM")
-    with c3:
-        st.metric("Max tempo", f"{variability['max_tempo']:.1f} BPM")
 
 
     st.markdown("---")
@@ -584,6 +518,7 @@ def render_explicit_section(track_df):
 
     st.plotly_chart(bar_fig, width="stretch")
 
+# function to render the full page
 def render_album_summary_page(summary_result, cover_data):
     render_album_header(summary_result, cover_data)
     st.markdown("---")

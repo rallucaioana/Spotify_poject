@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 
+# masks invalid data based on parameters inherent to the data itself
 def mask_invalid_data(df):
     m = pd.Series(False, index=df.index)
 
@@ -55,6 +56,7 @@ def mask_invalid_data(df):
     return m
 
 
+# runs the IQR outlier detection
 def detect_outliers(df, columns, iqr_multiplier=1.5, min_flagged_features=1):
     if not columns:
         raise ValueError("No columns supplied for outlier detection.")
@@ -90,6 +92,7 @@ def detect_outliers(df, columns, iqr_multiplier=1.5, min_flagged_features=1):
     return result
 
 
+# adds a datetime column for the release date
 def add_release_date_columns(df):
     result = df.copy()
 
@@ -100,7 +103,7 @@ def add_release_date_columns(df):
 
     return result
 
-
+# runs all data cleaning and verification tasks
 def build_clean_dataset(df, outlier_action="flag"):
     df = add_release_date_columns(df)
 
