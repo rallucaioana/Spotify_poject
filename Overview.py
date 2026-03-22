@@ -4,6 +4,7 @@ import plotly.graph_objects as go
 
 from utils.load_session_data import ensure_app_data_loaded
 from utils.helpers import add_era_column, get_theme_colors, prepare_year_column, filter_by_year_range, apply_iqr_filter
+from utils.artist_audits import get_top_artists_by_feature, get_bottom_artists_by_feature
 
 PRIMARY_COLOR, PRIMARY_COLOR_FILL = get_theme_colors(fill_alpha=0.45)
 
@@ -403,3 +404,5 @@ fig.update_layout(
     ),
     height=600
 )
+
+st.plotly_chart(fig, width="stretch")
