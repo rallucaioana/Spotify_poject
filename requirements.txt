@@ -2,9 +2,4 @@ streamlit
 numpy
 pandas
 plotly
-sqlite3
-re
-html
 requests
-base64
-time
