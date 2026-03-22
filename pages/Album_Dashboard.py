@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import requests
 
 from utils.load_session_data import ensure_app_data_loaded
 from utils.album_features import get_album_feature_summary_split
@@ -63,7 +64,7 @@ if selected_label is not None:
         else:
             try:
                 cover_data = get_album_cover_data(selected_album_id)
-            except Exception:
+            except requests.exceptions.RequestException:
                 cover_data = {"image_url": None, "spotify_url": None, "album_name": None}
 
         track_table_df = (

@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import requests
 
 from utils.load_session_data import ensure_app_data_loaded
 from utils.artist_search import build_artist_selector_df, get_artist_overview, get_artist_releases
@@ -63,7 +64,7 @@ with st.spinner("Loading artist data..."):
     else:
         try:
             profile = get_artist_profile_data(artist_id)
-        except Exception:
+        except requests.exceptions.RequestException:
             profile = {"image_url": None, "spotify_url": None, "name": None}
 
 
